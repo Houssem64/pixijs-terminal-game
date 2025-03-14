@@ -131,7 +131,7 @@ export class TerminalScreen extends Container {
     private PADDING_X = 12;
     private PADDING_Y = 12;
     private LINE_HEIGHT = 20;
-    private FONT_SIZE = 14;
+    private FONT_SIZE = 16;
     private CURSOR_BLINK_SPEED = 530;
     private HISTORY_SIZE = 1000;
     private commandHistory: string[] = [];
@@ -144,7 +144,7 @@ export class TerminalScreen extends Container {
         fontFamily: "Fira Code",
         fontSize: this.FONT_SIZE,
         fill: 0xf8f8f2,  // Will be updated from theme
-        fontWeight: "400",
+        fontWeight: "500",
         letterSpacing: 0,
         lineHeight: this.LINE_HEIGHT,
         align: 'left'

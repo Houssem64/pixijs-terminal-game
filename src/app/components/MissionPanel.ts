@@ -54,7 +54,7 @@ export class MissionPanel extends Container {
             fill: 0x00ff00,
             fontWeight: "700",
             letterSpacing: 0,
-            padding: 4
+            padding: 6
         });
 
         this.textStyle = new TextStyle({
@@ -311,9 +311,9 @@ export class MissionPanel extends Container {
         this.background.endFill();
 
         // Draw header - Add top padding to account for PlayerStatusBar
-        const header = new Text("CYBERSECURITY MISSIONS", this.titleStyle);
+        const header = new Text("MISSIONS", this.titleStyle);
         header.x = 20;
-        header.y = 120; // Increased from 20 to give space for PlayerStatusBar
+        header.y = 130; // Increased from 20 to give space for PlayerStatusBar
         this.contentContainer.addChild(header);
 
         // Get unique categories
