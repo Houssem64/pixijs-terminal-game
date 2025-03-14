@@ -144,8 +144,8 @@ export class TerminalScreen extends Container {
         fontFamily: "Fira Code",
         fontSize: this.FONT_SIZE,
         fill: 0xf8f8f2,  // Will be updated from theme
-        fontWeight: "500",
-        letterSpacing: 0,
+        fontWeight: "600",  // Increased from 500 for better clarity
+        letterSpacing: 0.5,  // Added slight letter spacing
         lineHeight: this.LINE_HEIGHT,
         align: 'left'
     });
@@ -154,8 +154,8 @@ export class TerminalScreen extends Container {
         fontFamily: "Fira Code",
         fontSize: this.FONT_SIZE,
         fill: 0x50fa7b,  // Will be updated from theme
-        fontWeight: "400",
-        letterSpacing: 0,
+        fontWeight: "600",  // Increased from 400 for better clarity
+        letterSpacing: 0.5,  // Added slight letter spacing
         lineHeight: this.LINE_HEIGHT,
         align: 'left'
     });
@@ -164,8 +164,8 @@ export class TerminalScreen extends Container {
         fontFamily: "Fira Code",
         fontSize: this.FONT_SIZE,
         fill: 0xff5555,  // Will be updated from theme
-        fontWeight: "400",
-        letterSpacing: 0,
+        fontWeight: "600",  // Increased from 400 for better clarity
+        letterSpacing: 0.5,  // Added slight letter spacing
         lineHeight: this.LINE_HEIGHT,
         align: 'left'
     });
@@ -926,9 +926,9 @@ export class TerminalScreen extends Container {
                 }
 
                 const outputText = new Text(part, style);
-                outputText.resolution = window.devicePixelRatio || 1;
-                outputText.x = currentX;
-                outputText.y = currentY;
+                outputText.resolution = Math.max(window.devicePixelRatio || 1, 2);  // Ensure minimum resolution of 2
+                outputText.x = Math.round(currentX);  // Round to prevent subpixel rendering
+                outputText.y = Math.round(currentY);  // Round to prevent subpixel rendering
                 
                 lineHeight = Math.max(lineHeight, outputText.height);
                 currentX += outputText.width;
