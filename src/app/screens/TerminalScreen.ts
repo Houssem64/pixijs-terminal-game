@@ -127,6 +127,16 @@ export class TerminalScreen extends Container {
     private missionManager: MissionManager;
     private playerStatusBar: PlayerStatusBar;
 
+    // Add scrollbar properties
+    private scrollbar: Graphics = new Graphics();
+    private scrollbarVisible: boolean = false;
+    private scrollbarWidth: number = 8;
+    private scrollbarTrack: Graphics = new Graphics();
+    private scrollPosition: number = 0;
+    private maxScrollPosition: number = 0;
+    private isDragging: boolean = false;
+    private lastMouseY: number = 0;
+
     // Add padding constants
     private PADDING_X = 12;
     private PADDING_Y = 12;
@@ -265,6 +275,23 @@ export class TerminalScreen extends Container {
 
         // Update positions
         this.updateInputPosition();
+
+        // Initialize scrollbar
+        this.scrollbar = new Graphics();
+        this.scrollbarTrack = new Graphics();
+        this.addChild(this.scrollbarTrack);
+        this.addChild(this.scrollbar);
+
+        // Add scrollbar event listeners
+        this.scrollbar.eventMode = 'static';
+        this.scrollbar.cursor = 'pointer';
+        this.scrollbar.on('pointerdown', this.startDragging.bind(this));
+        this.scrollbar.on('pointerup', this.stopDragging.bind(this));
+        this.scrollbar.on('pointerupoutside', this.stopDragging.bind(this));
+        this.scrollbar.on('pointermove', this.dragScrollbar.bind(this));
+
+        // Add wheel event listener for scrolling
+        window.addEventListener('wheel', this.handleWheel.bind(this));
     }
 
     private initEnvironmentVariables(): void {
@@ -779,11 +806,15 @@ export class TerminalScreen extends Container {
         // Reposition player status bar to be on top of the sidebar
         this.positionPlayerStatusBar();
         
+        // Update scrollbar visibility and position
+        this.updateScrollbarVisibility();
+        
         // Reposition input
         this.updateInputPosition();
     }
 
     public destroy(): void {
+        window.removeEventListener('wheel', this.handleWheel.bind(this));
         super.destroy();
     }
 
@@ -896,23 +927,6 @@ export class TerminalScreen extends Container {
         const lastOutput = this.outputContainer.children[this.outputContainer.children.length - 1];
         let currentY = lastOutput ? lastOutput.y + this.LINE_HEIGHT : 0;
         
-        // Calculate if we need to scroll
-        const maxVisibleY = this.terminalHeight - this.PADDING_Y * 2 - this.LINE_HEIGHT * 2; // Leave space for prompt
-        const needsScroll = currentY > maxVisibleY;
-        
-        if (needsScroll) {
-            // Calculate how much to scroll up
-            const scrollAmount = currentY - maxVisibleY;
-            
-            // Move all existing text up
-            this.outputContainer.children.forEach(child => {
-                child.y -= scrollAmount;
-            });
-            
-            // Update current Y position
-            currentY = maxVisibleY;
-        }
-        
         lines.forEach((line) => {
             // Process ANSI escape codes
             const parts = line.split(/(\x1b\[[0-9;]*m)/);
@@ -964,6 +978,9 @@ export class TerminalScreen extends Container {
 
         // Update input position
         this.updateInputPosition();
+
+        // After adding all text, update scrollbar visibility and position
+        this.updateScrollbarVisibility();
     }
 
     private updateInputPosition(): void {
@@ -985,22 +1002,6 @@ export class TerminalScreen extends Container {
                 lastY = Math.max(lastY, child.y + child.height);
                 maxHeight = Math.max(maxHeight, child.height);
             }
-        }
-        
-        // Calculate the maximum visible Y position
-        const maxVisibleY = this.terminalHeight - this.PADDING_Y * 2 - this.LINE_HEIGHT * 2;
-        
-        // If the last output is below the visible area, scroll everything up
-        if (lastY > maxVisibleY) {
-            const scrollAmount = lastY - maxVisibleY;
-            
-            // Move all text up
-            this.outputContainer.children.forEach(child => {
-                child.y -= scrollAmount;
-            });
-            
-            // Update lastY to be at the maximum visible position
-            lastY = maxVisibleY;
         }
         
         // Add spacing between the last output and the prompt
@@ -2018,5 +2019,99 @@ export class TerminalScreen extends Container {
         // Position the player status bar at the top-right (top of the sidebar)
         this.playerStatusBar.x = this.terminalWidth - this.MISSION_PANEL_WIDTH;
         this.playerStatusBar.y = 0;
+    }
+
+    private startDragging(event: any): void {
+        this.isDragging = true;
+        this.lastMouseY = event.global.y;
+    }
+
+    private stopDragging(): void {
+        this.isDragging = false;
+    }
+
+    private dragScrollbar(event: any): void {
+        if (!this.isDragging) return;
+
+        const deltaY = event.global.y - this.lastMouseY;
+        this.lastMouseY = event.global.y;
+
+        // Calculate new scroll position
+        this.scrollPosition = Math.max(0, Math.min(
+            this.maxScrollPosition,
+            this.scrollPosition + (deltaY * this.maxScrollPosition / (this.terminalHeight - this.PADDING_Y * 2))
+        ));
+
+        // Update text positions
+        this.outputContainer.children.forEach(child => {
+            child.y -= deltaY;
+        });
+
+        this.updateScrollbar();
+    }
+
+    private handleWheel(event: WheelEvent): void {
+        if (!this.scrollbarVisible) return;
+
+        event.preventDefault();
+        const delta = event.deltaY;
+        
+        // Calculate new scroll position
+        this.scrollPosition = Math.max(0, Math.min(
+            this.maxScrollPosition,
+            this.scrollPosition + delta
+        ));
+
+        // Update text positions
+        this.outputContainer.children.forEach(child => {
+            child.y -= delta;
+        });
+
+        // Update scrollbar
+        this.updateScrollbar();
+    }
+
+    private updateScrollbar(): void {
+        const visibleHeight = this.terminalHeight - this.PADDING_Y * 2;
+        const scrollbarHeight = Math.max(30, visibleHeight * (visibleHeight / (this.maxScrollPosition + visibleHeight)));
+        const scrollbarY = this.PADDING_Y + (this.scrollPosition / this.maxScrollPosition) * (visibleHeight - scrollbarHeight);
+        const scrollbarX = this.terminalWidth - this.MISSION_PANEL_WIDTH - this.scrollbarWidth - this.PADDING_X;
+
+        // Draw scrollbar track
+        this.scrollbarTrack.clear();
+        this.scrollbarTrack.beginFill(this.currentTheme.selection, 0.2);
+        this.scrollbarTrack.drawRect(scrollbarX, this.PADDING_Y, this.scrollbarWidth, visibleHeight);
+        this.scrollbarTrack.endFill();
+
+        // Draw scrollbar thumb
+        this.scrollbar.clear();
+        this.scrollbar.beginFill(this.currentTheme.selection, 0.5);
+        this.scrollbar.drawRect(scrollbarX, scrollbarY, this.scrollbarWidth, scrollbarHeight);
+        this.scrollbar.endFill();
+    }
+
+    private updateScrollbarVisibility(): void {
+        if (this.outputContainer.children.length === 0) {
+            this.scrollbarVisible = false;
+            this.scrollbar.visible = false;
+            this.scrollbarTrack.visible = false;
+            return;
+        }
+
+        // Find the total height of all text
+        let totalHeight = 0;
+        this.outputContainer.children.forEach(child => {
+            totalHeight = Math.max(totalHeight, child.y + child.height);
+        });
+
+        const visibleHeight = this.terminalHeight - this.PADDING_Y * 2;
+        this.scrollbarVisible = totalHeight > visibleHeight;
+        this.scrollbar.visible = this.scrollbarVisible;
+        this.scrollbarTrack.visible = this.scrollbarVisible;
+
+        if (this.scrollbarVisible) {
+            this.maxScrollPosition = totalHeight - visibleHeight;
+            this.updateScrollbar();
+        }
     }
 } 
