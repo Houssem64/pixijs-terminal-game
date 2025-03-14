@@ -29,6 +29,7 @@ export class MissionPanel extends Container {
     private currentMissionIndex = 0;
     private currentCategory: MissionCategory | null = null;
     private showingCategoryList = true;
+    private PANEL_WIDTH = 350;
 
     private titleStyle: TextStyle;
     private textStyle: TextStyle;
@@ -64,7 +65,7 @@ export class MissionPanel extends Container {
             letterSpacing: 0,
             padding: 4,
             wordWrap: true,
-            wordWrapWidth: 280
+            wordWrapWidth: this.PANEL_WIDTH - 40
         });
 
         this.stepStyle = new TextStyle({
@@ -75,7 +76,7 @@ export class MissionPanel extends Container {
             letterSpacing: 0,
             padding: 4,
             wordWrap: true,
-            wordWrapWidth: 260
+            wordWrapWidth: this.PANEL_WIDTH - 60
         });
 
         this.categoryStyle = new TextStyle({
@@ -104,7 +105,7 @@ export class MissionPanel extends Container {
             letterSpacing: 0,
             padding: 4,
             wordWrap: true,
-            wordWrapWidth: 260
+            wordWrapWidth: this.PANEL_WIDTH - 60
         });
 
         this.difficultyStyle = new TextStyle({
@@ -173,6 +174,30 @@ export class MissionPanel extends Container {
                     "Understand network scanning techniques",
                     "Learn port enumeration methods",
                     "Practice identifying vulnerable services"
+                ]
+            },
+            {
+                id: "wifi_pentest",
+                title: "WiFi Penetration Test",
+                description: "Learn how to perform a complete penetration test on a WiFi network. You'll scan for networks, capture handshakes, analyze traffic, and crack WiFi passwords.",
+                category: MissionCategory.PEN_TESTING,
+                difficulty: "Intermediate",
+                steps: [
+                    "Scan for available wireless networks using 'wifi scan'",
+                    "Capture network packets using 'wifi capture CORP_SECURE'",
+                    "Analyze the captured packets with 'wifi analyze'",
+                    "Create a wordlist file at '/home/user/wifi/wordlist.txt'",
+                    "Crack the WiFi password using 'wifi crack CORP_SECURE /home/user/wifi/wordlist.txt'",
+                    "Connect to the WiFi network with 'wifi connect CORP_SECURE corporate2023'",
+                    "Scan for hosts on the network with 'nmap scan'",
+                    "Create a penetration test report"
+                ],
+                completed: false,
+                learningObjectives: [
+                    "Learn WiFi reconnaissance techniques",
+                    "Understand WPA2 authentication and vulnerabilities",
+                    "Practice wireless packet capture and analysis",
+                    "Learn dictionary-based password cracking"
                 ]
             },
             {
@@ -282,20 +307,20 @@ export class MissionPanel extends Container {
         // Draw background
         this.background.clear();
         this.background.beginFill(0x111111);
-        this.background.drawRect(0, 0, 300, window.innerHeight);
+        this.background.drawRect(0, 0, this.PANEL_WIDTH, window.innerHeight);
         this.background.endFill();
 
-        // Draw header
+        // Draw header - Add top padding to account for PlayerStatusBar
         const header = new Text("CYBERSECURITY MISSIONS", this.titleStyle);
         header.x = 20;
-        header.y = 20;
+        header.y = 120; // Increased from 20 to give space for PlayerStatusBar
         this.contentContainer.addChild(header);
 
         // Get unique categories
         const categories = Object.values(MissionCategory);
         
-        // Draw categories
-        let categoryY = 70;
+        // Draw categories - Start lower to account for PlayerStatusBar
+        let categoryY = 170; // Increased from 70
         categories.forEach(category => {
             const categoryText = new Text(category, this.categoryStyle);
             categoryText.x = 20;
@@ -307,7 +332,7 @@ export class MissionPanel extends Container {
             // Count missions in this category
             const count = this.missions.filter(m => m.category === category).length;
             const countText = new Text(`(${count})`, this.textStyle);
-            countText.x = 280 - countText.width;
+            countText.x = this.PANEL_WIDTH - countText.width - 20;
             countText.y = categoryY;
             
             this.contentContainer.addChild(categoryText);
@@ -330,13 +355,13 @@ export class MissionPanel extends Container {
         // Draw background
         this.background.clear();
         this.background.beginFill(0x111111);
-        this.background.drawRect(0, 0, 300, window.innerHeight);
+        this.background.drawRect(0, 0, this.PANEL_WIDTH, window.innerHeight);
         this.background.endFill();
 
-        // Draw header
+        // Draw header - Add top padding to account for PlayerStatusBar
         const backButton = new Text("<< Back", this.buttonStyle);
         backButton.x = 20;
-        backButton.y = 20;
+        backButton.y = 120; // Increased from 20
         backButton.eventMode = 'static';
         backButton.cursor = 'pointer';
         backButton.on('pointerdown', () => this.drawCategoryList());
@@ -344,14 +369,14 @@ export class MissionPanel extends Container {
 
         const header = new Text(this.currentCategory || "", this.titleStyle);
         header.x = 20;
-        header.y = 50;
+        header.y = 150; // Increased from 50
         this.contentContainer.addChild(header);
 
         // Filter missions by selected category
         const categoryMissions = this.missions.filter(m => m.category === this.currentCategory);
         
-        // Draw mission list
-        let missionY = 90;
+        // Draw mission list - Start lower to account for PlayerStatusBar
+        let missionY = 190; // Increased from 90
         categoryMissions.forEach((mission, index) => {
             const container = new Container();
             container.y = missionY;
@@ -371,7 +396,7 @@ export class MissionPanel extends Container {
             
             const completionStatus = new Text(mission.completed ? "COMPLETED" : "INCOMPLETE", 
                 mission.completed ? new TextStyle({...this.textStyle, fill: 0x00ff00}) : new TextStyle({...this.textStyle, fill: 0xaaaaaa}));
-            completionStatus.x = 280 - completionStatus.width;
+            completionStatus.x = this.PANEL_WIDTH - completionStatus.width - 20;
             completionStatus.y = 0;
             container.addChild(completionStatus);
             
@@ -387,41 +412,41 @@ export class MissionPanel extends Container {
         // Draw background
         this.background.clear();
         this.background.beginFill(0x111111);
-        this.background.drawRect(0, 0, 300, window.innerHeight);
+        this.background.drawRect(0, 0, this.PANEL_WIDTH, window.innerHeight);
         this.background.endFill();
 
-        // Draw header and back button
+        // Draw header and back button - Add top padding to account for PlayerStatusBar
         const backButton = new Text("<< Back", this.buttonStyle);
         backButton.x = 20;
-        backButton.y = 20;
+        backButton.y = 120; // Increased from 20
         backButton.eventMode = 'static';
         backButton.cursor = 'pointer';
         backButton.on('pointerdown', () => this.drawMissionList());
         this.contentContainer.addChild(backButton);
 
-        // Draw mission details
+        // Draw mission details - Adjust all Y positions
         const title = new Text(mission.title, this.titleStyle);
         title.x = 20;
-        title.y = 50;
+        title.y = 150; // Increased from 50
         this.contentContainer.addChild(title);
 
         const difficulty = new Text(mission.difficulty, this.getDifficultyStyle(mission.difficulty));
         difficulty.x = 20;
-        difficulty.y = 80;
+        difficulty.y = 180; // Increased from 80
         this.contentContainer.addChild(difficulty);
 
         const description = new Text(mission.description, this.textStyle);
         description.x = 20;
-        description.y = 110;
+        description.y = 210; // Increased from 110
         this.contentContainer.addChild(description);
 
-        // Draw learning objectives
+        // Draw learning objectives - Adjust Y position
         const objectivesTitle = new Text("Learning Objectives:", this.categoryStyle);
         objectivesTitle.x = 20;
-        objectivesTitle.y = 160;
+        objectivesTitle.y = 260; // Increased from 160
         this.contentContainer.addChild(objectivesTitle);
 
-        let objectiveY = 190;
+        let objectiveY = 290; // Increased from 190
         mission.learningObjectives.forEach((objective, index) => {
             const bullet = new Text(`• `, this.objectiveStyle);
             bullet.x = 20;
@@ -460,7 +485,7 @@ export class MissionPanel extends Container {
         // Start mission button
         const startButton = new Graphics();
         startButton.beginFill(0x008800);
-        startButton.drawRoundedRect(0, 0, 260, 40, 5);
+        startButton.drawRoundedRect(0, 0, this.PANEL_WIDTH - 40, 40, 5);
         startButton.endFill();
         startButton.x = 20;
         startButton.y = stepY + 20;
@@ -543,7 +568,7 @@ export class MissionPanel extends Container {
     public resize(width: number, height: number): void {
         this.background.clear();
         this.background.beginFill(0x111111);
-        this.background.drawRect(0, 0, 300, height);
+        this.background.drawRect(0, 0, this.PANEL_WIDTH, height);
         this.background.endFill();
     }
 } 

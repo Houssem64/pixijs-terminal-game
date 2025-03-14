@@ -2,8 +2,8 @@ import { Container, Graphics, Text, TextStyle } from "pixi.js";
 import { MissionManager, PlayerProgress } from "../utils/MissionManager";
 
 /**
- * A component that displays player status (level, rank, ELO) in the top right corner
- * of the screen, with a stylish cyberpunk design.
+ * A component that displays player status (level, rank, ELO) at the top of sidebar 
+ * with a stylish cyberpunk design.
  */
 export class PlayerStatusBar extends Container {
     private background: Graphics;
@@ -17,8 +17,8 @@ export class PlayerStatusBar extends Container {
     private manager: MissionManager;
     private playerData: PlayerProgress;
     
-    private barWidth: number = 220;
-    private barHeight: number = 80;
+    private barWidth: number = 350; // Match the sidebar width
+    private barHeight: number = 100; // Increased height for better spacing
     
     constructor() {
         super();
@@ -40,16 +40,16 @@ export class PlayerStatusBar extends Container {
         
         const rankStyle = new TextStyle({
             fontFamily: "Fira Code",
-            fontSize: 14,
+            fontSize: 18, // Increased size for better visibility
             fill: 0xffff00,
-            fontWeight: "500",
+            fontWeight: "700", // Made bold
         });
         
         const eloStyle = new TextStyle({
             fontFamily: "Fira Code",
-            fontSize: 12,
+            fontSize: 16, // Increased size for better visibility
             fill: 0xff9900,
-            fontWeight: "400",
+            fontWeight: "500", // Made more bold
         });
         
         const xpStyle = new TextStyle({
@@ -59,29 +59,29 @@ export class PlayerStatusBar extends Container {
             fontWeight: "400",
         });
         
-        // Create text elements
-        this.levelText = new Text(`LEVEL ${this.playerData.level}`, levelStyle);
-        this.levelText.x = 10;
-        this.levelText.y = 10;
-        this.addChild(this.levelText);
-        
+        // Create text elements - Changed order to put rank and ELO first
         this.rankText = new Text(`RANK: ${this.playerData.rank}`, rankStyle);
-        this.rankText.x = 10;
-        this.rankText.y = 32;
+        this.rankText.x = 20; // More padding
+        this.rankText.y = 15; // More padding
         this.addChild(this.rankText);
         
         this.eloText = new Text(`ELO: ${this.playerData.elo.toLocaleString()}`, eloStyle);
-        this.eloText.x = 10;
-        this.eloText.y = 52;
+        this.eloText.x = 20;
+        this.eloText.y = 45; // Increased spacing
         this.addChild(this.eloText);
+        
+        this.levelText = new Text(`LEVEL ${this.playerData.level}`, levelStyle);
+        this.levelText.x = 20;
+        this.levelText.y = 75; // Increased spacing
+        this.addChild(this.levelText);
         
         // XP bar background
         this.xpBarBackground = new Graphics();
         this.xpBarBackground.beginFill(0x333333);
-        this.xpBarBackground.drawRect(0, 0, this.barWidth - 20, 6);
+        this.xpBarBackground.drawRect(0, 0, this.barWidth - 40, 6); // Adjusted width
         this.xpBarBackground.endFill();
-        this.xpBarBackground.x = 10;
-        this.xpBarBackground.y = 70;
+        this.xpBarBackground.x = 20;
+        this.xpBarBackground.y = 105; // Adjusted position
         this.addChild(this.xpBarBackground);
         
         // XP progress bar
@@ -90,8 +90,8 @@ export class PlayerStatusBar extends Container {
         
         // XP text
         this.xpText = new Text("", xpStyle);
-        this.xpText.x = 10;
-        this.xpText.y = 70 + 8;
+        this.xpText.x = 20;
+        this.xpText.y = 115; // Adjusted position
         this.addChild(this.xpText);
         
         // Draw the component
@@ -119,7 +119,7 @@ export class PlayerStatusBar extends Container {
         this.background.clear();
         
         // Main background
-        this.background.beginFill(0x111111, 0.85);
+        this.background.beginFill(0x111111, 0.9); // More opaque
         this.background.lineStyle(2, 0x00ffff);
         this.background.drawRect(0, 0, this.barWidth, this.barHeight);
         this.background.endFill();
@@ -132,9 +132,9 @@ export class PlayerStatusBar extends Container {
         this.background.lineTo(this.barWidth - 4, this.barHeight * 0.6);
         
         // Update text content
-        this.levelText.text = `LEVEL ${this.playerData.level}`;
         this.rankText.text = `RANK: ${this.playerData.rank}`;
         this.eloText.text = `ELO: ${this.playerData.elo.toLocaleString()}`;
+        this.levelText.text = `LEVEL ${this.playerData.level}`;
         
         // Calculate XP progress percentage
         const totalXpForLevel = this.playerData.xp + this.playerData.xpToNextLevel;
@@ -144,7 +144,7 @@ export class PlayerStatusBar extends Container {
         // Update XP bar
         this.xpBar.clear();
         this.xpBar.beginFill(0x00ff00);
-        this.xpBar.drawRect(10, 70, (this.barWidth - 20) * progressPercentage, 6);
+        this.xpBar.drawRect(20, 105, (this.barWidth - 40) * progressPercentage, 6); // Adjusted position
         this.xpBar.endFill();
         
         // Update XP text
@@ -153,10 +153,10 @@ export class PlayerStatusBar extends Container {
     
     /**
      * Resize the component
+     * No longer need to position it as this is handled by TerminalScreen
      */
     public resize(width: number, height: number): void {
-        // Position in top right corner with some padding
-        this.x = width - this.barWidth - 10;
-        this.y = 10;
+        // Simply redraw to ensure proper appearance
+        this.draw();
     }
 } 

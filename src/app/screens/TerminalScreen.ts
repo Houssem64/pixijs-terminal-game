@@ -138,7 +138,7 @@ export class TerminalScreen extends Container {
     private historyIndex: number = -1;
     private terminalWidth = 0;
     private terminalHeight = 0;
-    private MISSION_PANEL_WIDTH = 300;
+    private MISSION_PANEL_WIDTH = 350; // Updated from 300 to 350
 
     private textStyle: TextStyle = new TextStyle({
         fontFamily: "Fira Code",
@@ -198,20 +198,21 @@ export class TerminalScreen extends Container {
         // Create output container
         this.outputContainer = new Container();
         this.addChild(this.outputContainer);
-
-        // Create mission panel
-        this.missionPanel = new MissionPanel();
-        this.addChild(this.missionPanel);
         
         // Initialize the mission manager
         this.missionManager = MissionManager.getInstance();
         
         // Register available missions
         this.missionManager.registerMission(WiFiPenTestMission);
+
+        // Create mission panel
+        this.missionPanel = new MissionPanel();
+        this.addChild(this.missionPanel);
         
         // Add player status bar
         this.playerStatusBar = new PlayerStatusBar();
         this.addChild(this.playerStatusBar);
+        this.positionPlayerStatusBar(); // Call a new method to position the status bar correctly
         
         // Listen for mission completion events
         this.missionManager.on('missionCompleted', (missionId: string) => {
@@ -736,6 +737,13 @@ export class TerminalScreen extends Container {
         // Resize mission panel
         this.missionPanel.resize(this.MISSION_PANEL_WIDTH, height);
         
+        // Position mission panel at the right side
+        this.missionPanel.x = this.terminalWidth - this.MISSION_PANEL_WIDTH;
+        this.missionPanel.y = 0;
+        
+        // Reposition player status bar to be on top of the sidebar
+        this.positionPlayerStatusBar();
+        
         // Reposition input
         this.updateInputPosition();
     }
@@ -1179,6 +1187,32 @@ export class TerminalScreen extends Container {
         } else if (args[1] === 'start' && args.length > 2) {
             // Start a mission
             const missionId = args[2];
+            
+            // Give special handling to wifi_pentest mission to ensure it's selectable
+            if (missionId === "wifi_pentest") {
+                const mission = this.missionManager.getMission(missionId);
+                if (mission) {
+                    this.missionManager.startMission(missionId);
+                    this.addOutput(`Starting mission: ${mission.title}`, false);
+                    this.addOutput(mission.description, false);
+                    
+                    this.addOutput("\nObjectives:", false);
+                    mission.objectives.forEach((objective, index) => {
+                        this.addOutput(`${index + 1}. ${objective.description}`, false);
+                    });
+                    
+                    // Set up mission environment
+                    this.setupWifiPenTestEnvironment();
+                    
+                    // Show message about using wifi commands
+                    this.addOutput("\nUse 'wifi scan' command to begin the mission.", false);
+                } else {
+                    this.addOutput("WiFi Penetration Testing mission is not available. Please ensure the mission is properly registered.", true);
+                }
+                return;
+            }
+            
+            // Handle other missions
             const success = this.missionManager.startMission(missionId);
             
             if (success) {
@@ -1886,5 +1920,12 @@ export class TerminalScreen extends Container {
         if (this.nanoState?.message) {
             this.addOutput(this.nanoState?.message || "", false, 0x00FF00);
         }
+    }
+
+    // New method to position the PlayerStatusBar at the top of the sidebar
+    private positionPlayerStatusBar(): void {
+        // Position the player status bar at the top-right (top of the sidebar)
+        this.playerStatusBar.x = this.terminalWidth - this.MISSION_PANEL_WIDTH;
+        this.playerStatusBar.y = 0;
     }
 } 
