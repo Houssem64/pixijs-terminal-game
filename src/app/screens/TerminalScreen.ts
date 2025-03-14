@@ -896,6 +896,23 @@ export class TerminalScreen extends Container {
         const lastOutput = this.outputContainer.children[this.outputContainer.children.length - 1];
         let currentY = lastOutput ? lastOutput.y + this.LINE_HEIGHT : 0;
         
+        // Calculate if we need to scroll
+        const maxVisibleY = this.terminalHeight - this.PADDING_Y * 2 - this.LINE_HEIGHT * 2; // Leave space for prompt
+        const needsScroll = currentY > maxVisibleY;
+        
+        if (needsScroll) {
+            // Calculate how much to scroll up
+            const scrollAmount = currentY - maxVisibleY;
+            
+            // Move all existing text up
+            this.outputContainer.children.forEach(child => {
+                child.y -= scrollAmount;
+            });
+            
+            // Update current Y position
+            currentY = maxVisibleY;
+        }
+        
         lines.forEach((line) => {
             // Process ANSI escape codes
             const parts = line.split(/(\x1b\[[0-9;]*m)/);
@@ -968,6 +985,22 @@ export class TerminalScreen extends Container {
                 lastY = Math.max(lastY, child.y + child.height);
                 maxHeight = Math.max(maxHeight, child.height);
             }
+        }
+        
+        // Calculate the maximum visible Y position
+        const maxVisibleY = this.terminalHeight - this.PADDING_Y * 2 - this.LINE_HEIGHT * 2;
+        
+        // If the last output is below the visible area, scroll everything up
+        if (lastY > maxVisibleY) {
+            const scrollAmount = lastY - maxVisibleY;
+            
+            // Move all text up
+            this.outputContainer.children.forEach(child => {
+                child.y -= scrollAmount;
+            });
+            
+            // Update lastY to be at the maximum visible position
+            lastY = maxVisibleY;
         }
         
         // Add spacing between the last output and the prompt
