@@ -442,7 +442,8 @@ export class TerminalScreen extends Container {
             { cmd: "ftp <host>", desc: "Connect to FTP server" },
             { cmd: "theme <theme>", desc: "Change terminal theme" },
             { cmd: "next", desc: "Show next mission" },
-            { cmd: "prev", desc: "Show previous mission" }
+            { cmd: "prev", desc: "Show previous mission" },
+            { cmd: "mission <id>", desc: "Start a specific mission" },
         ];
         
         // Find the longest command to align descriptions
@@ -495,7 +496,7 @@ export class TerminalScreen extends Container {
                         // Update PWD environment variable
                         this.environmentVariables["PWD"] = this.fileSystem.getCurrentPath();
                         // Don't output anything on successful cd, like real terminals
-                        this.missionPanel.completeMission('intro');
+                        this.missionPanel.completeMission('password-crack');
                     } catch (err: any) {
                         this.addOutput(`cd: ${err?.message || 'Unknown error'}`, true);
                     }
@@ -511,7 +512,7 @@ export class TerminalScreen extends Container {
                     try {
                         const recursive = args.includes('-p') || args.includes('--parents');
                         this.fileSystem.createDirectory(args[args.indexOf('-p') !== -1 ? args.indexOf('-p') + 1 : 1], recursive);
-                        this.missionPanel.completeMission('files');
+                        this.missionPanel.completeMission('network-scan');
                     } catch (err: any) {
                         this.addOutput(`mkdir: ${err?.message || 'Unknown error'}`, true);
                     }
@@ -523,7 +524,7 @@ export class TerminalScreen extends Container {
                     }
                     try {
                         this.fileSystem.createFile(args[1], '');
-                        this.missionPanel.completeMission('files');
+                        this.missionPanel.completeMission('phishing-campaign');
                     } catch (err: any) {
                         this.addOutput(`touch: ${err?.message || 'Unknown error'}`, true);
                     }
@@ -537,7 +538,7 @@ export class TerminalScreen extends Container {
                 case 'neofetch':
                     this.showNeofetch();
                     if (this.missionPanel) {
-                        this.missionPanel.completeMission('advanced');
+                        this.missionPanel.completeMission('asymmetric-crypto');
                     }
                     break;
                 case 'sudo':
@@ -550,7 +551,7 @@ export class TerminalScreen extends Container {
                     this.state = TerminalState.PASSWORD;
                     this.passwordAttempts = 0;
                     this.addOutput('[sudo] password for user: ');
-                    this.missionPanel.completeMission('advanced');
+                    this.missionPanel.completeMission('privilege-escalation');
                     break;
                 case 'nano':
                     if (args.length < 2) {
@@ -560,7 +561,7 @@ export class TerminalScreen extends Container {
                     
                     try {
                         this.startNano(args[1]);
-                        this.missionPanel.completeMission('advanced');
+                        this.missionPanel.completeMission('cipher-break');
                     } catch (err: any) {
                         this.addOutput(`nano: ${err?.message || 'Unknown error'}`, true);
                     }
@@ -575,7 +576,7 @@ export class TerminalScreen extends Container {
                         password: '',
                         authenticated: false
                     };
-                    this.missionPanel.completeMission('advanced');
+                    this.missionPanel.completeMission('network-scan');
                     break;
                 case 'next':
                     if (this.missionPanel) {
@@ -585,6 +586,38 @@ export class TerminalScreen extends Container {
                 case 'prev':
                     if (this.missionPanel) {
                         this.missionPanel.previousMission();
+                    }
+                    break;
+                case 'mission':
+                    if (args.length > 1) {
+                        const missionId = args[1];
+                        const mission = this.missionPanel['missions'].find((m: any) => m.id === missionId);
+                        if (mission) {
+                            this.addOutput(`Starting mission: ${mission.title}`);
+                            this.startMission(mission);
+                        } else {
+                            this.addOutput(`Mission with ID '${missionId}' not found. Use 'mission list' to see available missions.`, true);
+                        }
+                    } else if (args.length === 1 || args[1] === 'list') {
+                        // Show available missions
+                        this.addOutput("Available missions:");
+                        
+                        // Access missions from the mission panel
+                        const missions = this.missionPanel['missions'];
+                        const categories = Array.from(new Set(missions.map((m: any) => m.category)));
+                        
+                        categories.forEach((category: any) => {
+                            this.addOutput(`\n${category}:`);
+                            const categoryMissions = missions.filter((m: any) => m.category === category);
+                            categoryMissions.forEach((mission: any) => {
+                                const status = mission.completed ? "[COMPLETED]" : "[INCOMPLETE]";
+                                this.addOutput(`  ${mission.id} - ${mission.title} ${status}`);
+                            });
+                        });
+                        
+                        this.addOutput("\nUse 'mission <id>' to start a mission.");
+                    } else {
+                        this.addOutput("Usage: mission <id> or mission list", true);
                     }
                     break;
                 // New commands
@@ -609,11 +642,11 @@ export class TerminalScreen extends Container {
                 case 'chown':
                     this.handleChownCommand(args);
                     break;
-                case 'history':
-                    this.showCommandHistory();
-                    break;
                 case 'ps':
                     this.handlePsCommand();
+                    break;
+                case 'history':
+                    this.showCommandHistory();
                     break;
                 case 'df':
                     this.handleDfCommand(args);
@@ -724,7 +757,7 @@ export class TerminalScreen extends Container {
                 this.addOutput(files.length ? files.join('  ') : 'Directory is empty');
             }
             
-            this.missionPanel.completeMission('intro');
+            this.missionPanel.completeMission('password-crack');
         } catch (err: any) {
             this.addOutput(`ls: ${err?.message || 'Unknown error'}`, true);
         }
@@ -765,7 +798,7 @@ export class TerminalScreen extends Container {
                     // Overwrite file
                     this.fileSystem.writeFile(fileName, content);
                 }
-                this.missionPanel.completeMission('files');
+                this.missionPanel.completeMission('phishing-campaign');
             } catch (err: any) {
                 this.addOutput(`echo: ${err?.message || 'Unknown error'}`, true);
             }
@@ -787,7 +820,7 @@ export class TerminalScreen extends Container {
                 const content = this.fileSystem.readFile(args[i]);
                 if (content !== null) {
                     this.addOutput(content || '');
-                    this.missionPanel.completeMission('files');
+                    this.missionPanel.completeMission('network-scan');
                 } else {
                     this.addOutput(`cat: ${args[i]}: No such file or directory`, true);
                 }
@@ -1895,5 +1928,194 @@ export class TerminalScreen extends Container {
         // Position mission panel
         this.missionPanel.x = this.terminalWidth - this.MISSION_PANEL_WIDTH;
         this.missionPanel.y = 0;
+    }
+
+    private startMission(mission: any): void {
+        // Create mission-specific setup based on mission category
+        switch (mission.category) {
+            case 'Brute Force':
+                this.setupBruteForceEnvironment(mission);
+                break;
+            case 'Penetration Testing':
+                this.setupPenTestingEnvironment(mission);
+                break;
+            case 'Social Engineering':
+                this.setupSocialEngineeringEnvironment(mission);
+                break;
+            case 'Cryptography':
+                this.setupCryptographyEnvironment(mission);
+                break;
+            default:
+                this.addOutput(`Setting up environment for ${mission.title}...`);
+                break;
+        }
+        
+        // Also trigger the mission panel to show this mission
+        this.missionPanel['showMissionDetails'](mission);
+    }
+    
+    private setupBruteForceEnvironment(mission: any): void {
+        // Setup for brute force missions
+        this.addOutput(`Setting up environment for ${mission.title}...`);
+        
+        // Create relevant directories and files based on mission
+        if (mission.id === 'password-crack') {
+            try {
+                // Create a directory for password files if it doesn't exist
+                if (!this.fileSystem.fileExists('/home/user/secure')) {
+                    this.fileSystem.createDirectory('/home/user/secure', true);
+                }
+                
+                // Create a password file
+                this.fileSystem.writeFile('/home/user/secure/passwd.txt', 'admin:x:0:0:Administrator:/home/admin:/bin/bash\nuser:x:1000:1000:Regular User:/home/user:/bin/bash\nguest:x:1001:1001:Guest User:/home/guest:/bin/bash');
+                
+                // Create a shadow file with hashed passwords
+                this.fileSystem.writeFile('/home/user/secure/shadow.txt', 'admin:$6$salt$hashedpassword:18000:0:99999:7:::\nuser:$6$salt$weakpassword:18000:0:99999:7:::\nguest:$6$salt$guestpass:18000:0:99999:7:::');
+                
+                this.addOutput("Created password files in /home/user/secure/");
+                this.addOutput("Try using the 'crack' command to attempt password recovery.");
+            } catch (err: any) {
+                this.addOutput(`Failed to set up environment: ${err?.message || 'Unknown error'}`, true);
+            }
+        } else if (mission.id === 'hash-breaker') {
+            try {
+                // Create hash files
+                if (!this.fileSystem.fileExists('/home/user/hashes')) {
+                    this.fileSystem.createDirectory('/home/user/hashes', true);
+                }
+                
+                // Create sample hashed data
+                this.fileSystem.writeFile('/home/user/hashes/md5_hashes.txt', '5f4dcc3b5aa765d61d8327deb882cf99\n7c6a180b36896a0a8c02787eeafb0e4c\ne10adc3949ba59abbe56e057f20f883e');
+                this.fileSystem.writeFile('/home/user/hashes/README.txt', 'These are MD5 hashes of common passwords. Use the rainbow table technique to crack them.');
+                
+                this.addOutput("Created hash files in /home/user/hashes/");
+                this.addOutput("Use analysis tools to identify and crack the hashes.");
+            } catch (err: any) {
+                this.addOutput(`Failed to set up environment: ${err?.message || 'Unknown error'}`, true);
+            }
+        }
+    }
+    
+    private setupPenTestingEnvironment(mission: any): void {
+        // Setup for penetration testing missions
+        this.addOutput(`Setting up environment for ${mission.title}...`);
+        
+        if (mission.id === 'network-scan') {
+            try {
+                // Create network topology files
+                if (!this.fileSystem.fileExists('/home/user/network')) {
+                    this.fileSystem.createDirectory('/home/user/network', true);
+                }
+                
+                this.fileSystem.writeFile('/home/user/network/hosts.txt', '192.168.1.1\n192.168.1.2\n192.168.1.100\n192.168.1.254');
+                this.fileSystem.writeFile('/home/user/network/topology.txt', 'Network: 192.168.1.0/24\nGateway: 192.168.1.1\nDNS: 192.168.1.2\nServers: 192.168.1.100-105\nClients: 192.168.1.200-254');
+                
+                this.addOutput("Network information saved in /home/user/network/");
+                this.addOutput("Use 'scan' and 'portscan' commands to investigate the network.");
+            } catch (err: any) {
+                this.addOutput(`Failed to set up environment: ${err?.message || 'Unknown error'}`, true);
+            }
+        } else if (mission.id === 'privilege-escalation') {
+            try {
+                // Create vulnerable system files
+                if (!this.fileSystem.fileExists('/home/user/system')) {
+                    this.fileSystem.createDirectory('/home/user/system', true);
+                }
+                
+                this.fileSystem.writeFile('/home/user/system/passwd', 'root:x:0:0:root:/root:/bin/bash\nuser:x:1000:1000:user:/home/user:/bin/bash');
+                this.fileSystem.writeFile('/home/user/system/shadow', 'root:$6$salt$securepassword:18000:0:99999:7:::\nuser:$6$salt$userpassword:18000:0:99999:7:::');
+                
+                // Create a vulnerable SUID program
+                this.fileSystem.writeFile('/home/user/system/backup.sh', '#!/bin/bash\n# This script runs as root\necho "Backing up system files..."\n# Vulnerability: This script can be manipulated');
+                
+                this.addOutput("System files created in /home/user/system/");
+                this.addOutput("Find a way to escalate your privileges from user to root.");
+            } catch (err: any) {
+                this.addOutput(`Failed to set up environment: ${err?.message || 'Unknown error'}`, true);
+            }
+        }
+    }
+    
+    private setupSocialEngineeringEnvironment(mission: any): void {
+        // Setup for social engineering missions
+        this.addOutput(`Setting up environment for ${mission.title}...`);
+        
+        if (mission.id === 'phishing-campaign') {
+            try {
+                // Create phishing templates directory
+                if (!this.fileSystem.fileExists('/home/user/phishing')) {
+                    this.fileSystem.createDirectory('/home/user/phishing', true);
+                }
+                
+                this.fileSystem.writeFile('/home/user/phishing/template.html', '<!DOCTYPE html>\n<html>\n<head>\n  <title>Login</title>\n</head>\n<body>\n  <h1>Login to Your Account</h1>\n  <form>\n    <input type="text" placeholder="Email">\n    <input type="password" placeholder="Password">\n    <button>Login</button>\n  </form>\n</body>\n</html>');
+                
+                this.fileSystem.writeFile('/home/user/phishing/target_list.txt', 'john.doe@example.com\njanedoe@company.com\nsadmin@organization.org\nrandom.user@generic.net');
+                
+                this.addOutput("Phishing materials created in /home/user/phishing/");
+                this.addOutput("Create a convincing phishing campaign targeting the users in the list.");
+            } catch (err: any) {
+                this.addOutput(`Failed to set up environment: ${err?.message || 'Unknown error'}`, true);
+            }
+        } else if (mission.id === 'pretexting') {
+            try {
+                // Create pretexting scenario files
+                if (!this.fileSystem.fileExists('/home/user/pretexting')) {
+                    this.fileSystem.createDirectory('/home/user/pretexting', true);
+                }
+                
+                this.fileSystem.writeFile('/home/user/pretexting/company_info.txt', 'Company: Acme Corp\nEmployees: John Smith (CEO), Jane Doe (CTO), Sam Wilson (IT Admin)\nDepartments: IT, HR, Finance, Marketing\nPhone System: Extension format is 3 digits, starting with department code (1 for IT, 2 for HR, etc.)');
+                
+                this.fileSystem.writeFile('/home/user/pretexting/scenario.txt', 'Objective: Extract the quarterly financial report\nTarget: Finance Department\nConstraints: You cannot physically enter the building');
+                
+                this.addOutput("Pretexting scenario created in /home/user/pretexting/");
+                this.addOutput("Develop a pretext to extract the information from the target.");
+            } catch (err: any) {
+                this.addOutput(`Failed to set up environment: ${err?.message || 'Unknown error'}`, true);
+            }
+        }
+    }
+    
+    private setupCryptographyEnvironment(mission: any): void {
+        // Setup for cryptography missions
+        this.addOutput(`Setting up environment for ${mission.title}...`);
+        
+        if (mission.id === 'cipher-break') {
+            try {
+                // Create cipher files
+                if (!this.fileSystem.fileExists('/home/user/crypto')) {
+                    this.fileSystem.createDirectory('/home/user/crypto', true);
+                }
+                
+                // Caesar cipher (shift by 3)
+                this.fileSystem.writeFile('/home/user/crypto/caesar.txt', 'Wklv lv d Fdhvdu flskhu zlwk d vkliw ri 3.');
+                
+                // Vigenère cipher (key: "KEY")
+                this.fileSystem.writeFile('/home/user/crypto/vigenere.txt', 'Drsc mw k Zmqcxovs gmtncp amdr dro uiw "IOC".');
+                
+                // Frequency analysis text
+                this.fileSystem.writeFile('/home/user/crypto/frequency.txt', 'Hvs eimqy pfckb tcl xiadg cjsf hvs zonm rcuwgra smr');
+                
+                this.addOutput("Encrypted files created in /home/user/crypto/");
+                this.addOutput("Use cryptanalysis techniques to decrypt the messages.");
+            } catch (err: any) {
+                this.addOutput(`Failed to set up environment: ${err?.message || 'Unknown error'}`, true);
+            }
+        } else if (mission.id === 'asymmetric-crypto') {
+            try {
+                // Create PKI materials
+                if (!this.fileSystem.fileExists('/home/user/pki')) {
+                    this.fileSystem.createDirectory('/home/user/pki', true);
+                }
+                
+                this.fileSystem.writeFile('/home/user/pki/README.txt', 'In this directory, you will set up your own Public Key Infrastructure.\n1. Generate your key pair\n2. Share your public key\n3. Encrypt a message using a recipient\'s public key\n4. Decrypt a message using your private key');
+                
+                this.fileSystem.writeFile('/home/user/pki/encrypted_message.txt', 'This file contains an encrypted message that you will need to decrypt using the proper private key.');
+                
+                this.addOutput("PKI materials created in /home/user/pki/");
+                this.addOutput("Set up your public/private key pair and practice encryption/decryption.");
+            } catch (err: any) {
+                this.addOutput(`Failed to set up environment: ${err?.message || 'Unknown error'}`, true);
+            }
+        }
     }
 } 

@@ -334,15 +334,18 @@ export class FileSystem {
     }
 
     isExecutable(path: string): boolean {
-        const node = this.getNodeFromPath(this.normalizePath(path));
-        if (!node) return false;
-        
-        // Check if it's a file marked as executable
-        if (node.type === 'file') {
-            return node.executable === true;
-        }
-        
-        // Directories are always "executable" (can be entered)
-        return node.type === 'directory';
+        const node = this.getNodeFromPath(path);
+        return node?.executable || false;
+    }
+
+    // Add methods to check if a file or directory exists
+    fileExists(path: string): boolean {
+        const node = this.getNodeFromPath(path);
+        return node !== null && node.type === 'file';
+    }
+
+    directoryExists(path: string): boolean {
+        const node = this.getNodeFromPath(path);
+        return node !== null && node.type === 'directory';
     }
 } 
