@@ -441,7 +441,8 @@ export class TerminalScreen extends Container {
     }
 
     private showHelp(): void {
-        const commands = [
+        // Group commands by category for better organization
+        const generalCommands = [
             { cmd: "help", desc: "Show this help message" },
             { cmd: "clear, cls", desc: "Clear the terminal screen" },
             { cmd: "ls", desc: "List files in current directory" },
@@ -453,13 +454,14 @@ export class TerminalScreen extends Container {
             { cmd: "echo <text> > <file>", desc: "Write text to file" },
             { cmd: "echo <text> >> <file>", desc: "Append text to file" },
             { cmd: "cat <file>", desc: "Display file contents" },
-            { cmd: "grep <pattern> <file>", desc: "Search for pattern in files" },
-            { cmd: "find <path> [expression]", desc: "Search for files" },
             { cmd: "rm <file>", desc: "Remove files or directories" },
             { cmd: "cp <source> <dest>", desc: "Copy files or directories" },
             { cmd: "mv <source> <dest>", desc: "Move files or directories" },
             { cmd: "chmod <mode> <file>", desc: "Change file permissions" },
-            { cmd: "chown <owner> <file>", desc: "Change file owner" },
+            { cmd: "chown <owner> <file>", desc: "Change file owner" }
+        ];
+        
+        const systemCommands = [
             { cmd: "history", desc: "Show command history" },
             { cmd: "ps", desc: "Report process status" },
             { cmd: "df", desc: "Report file system disk space usage" },
@@ -474,28 +476,61 @@ export class TerminalScreen extends Container {
             { cmd: "neofetch", desc: "Display system information" },
             { cmd: "sudo <command>", desc: "Run command with admin privileges" },
             { cmd: "nano <file>", desc: "Text editor" },
-            { cmd: "ftp <host>", desc: "Connect to FTP server" },
-            { cmd: "theme <theme>", desc: "Change terminal theme" },
-            { cmd: "next", desc: "Show next mission" },
-            { cmd: "prev", desc: "Show previous mission" },
-            { cmd: "mission <id>", desc: "Start a specific mission" },
+            { cmd: "theme <theme>", desc: "Change terminal theme" }
+        ];
+        
+        const missionCommands = [
             { cmd: "mission list", desc: "Show available missions" },
+            { cmd: "mission start <id>", desc: "Start a specific mission" },
+            { cmd: "mission status", desc: "Show current mission status" },
+            { cmd: "next", desc: "Show next mission" },
+            { cmd: "prev", desc: "Show previous mission" }
+        ];
+        
+        const networkCommands = [
+            { cmd: "nmap scan", desc: "Scan network for hosts" },
+            { cmd: "nmap analyze", desc: "Analyze open ports on target" },
+            { cmd: "ftp <host>", desc: "Connect to FTP server" }
+        ];
+        
+        const wifiCommands = [
             { cmd: "wifi scan", desc: "Scan for wireless networks" },
             { cmd: "wifi capture <ssid>", desc: "Capture packets from a wireless network" },
             { cmd: "wifi analyze", desc: "Analyze captured packets" },
             { cmd: "wifi crack <ssid> <wordlist>", desc: "Attempt to crack a wireless password" },
-            { cmd: "wifi connect <ssid> <password>", desc: "Connect to a wireless network" },
+            { cmd: "wifi connect <ssid> <password>", desc: "Connect to a wireless network" }
         ];
         
         // Find the longest command to align descriptions
-        const longestCmd = Math.max(...commands.map(cmd => cmd.cmd.length));
-        const helpText = ["\x1b[1mAvailable commands:\x1b[0m"];
+        const allCommands = [
+            ...generalCommands, 
+            ...systemCommands, 
+            ...missionCommands, 
+            ...networkCommands, 
+            ...wifiCommands
+        ];
+        const longestCmd = Math.max(...allCommands.map(cmd => cmd.cmd.length));
         
-        commands.forEach(({ cmd, desc }) => {
-            // Pad command with spaces to align all descriptions
-            const paddedCmd = cmd.padEnd(longestCmd + 2);
-            helpText.push(`  \x1b[36m${paddedCmd}\x1b[0m ${desc}`);
-        });
+        // Helper to format and print commands
+        const formatSection = (title: string, commands: { cmd: string, desc: string }[]) => {
+            const output = [`\n\x1b[1m${title}:\x1b[0m`];
+            commands.forEach(({ cmd, desc }) => {
+                const paddedCmd = cmd.padEnd(longestCmd + 2);
+                output.push(`  \x1b[36m${paddedCmd}\x1b[0m ${desc}`);
+            });
+            return output.join('\n');
+        };
+        
+        // Build the help output
+        const helpText = [
+            "\x1b[1mTerminal Help\x1b[0m",
+            "Type a command and press Enter to execute it. Use Up/Down arrows to navigate command history.",
+            formatSection("Basic File System Commands", generalCommands),
+            formatSection("System & Environment Commands", systemCommands),
+            formatSection("Mission Commands", missionCommands),
+            formatSection("Network Tools", networkCommands),
+            formatSection("WiFi Hacking Tools (wifite)", wifiCommands)
+        ];
         
         this.addOutput(helpText.join('\n'));
     }
@@ -1580,6 +1615,10 @@ export class TerminalScreen extends Container {
      * Handle keyboard input events
      */
     private handleKeyPress(event: KeyboardEvent): void {
+        // Since this is just keyboard input, we process all keys
+        // regardless of where the cursor is. The mission panel will
+        // handle its own scrolling events separately.
+
         if (this.state === TerminalState.NORMAL) {
             switch (event.key) {
                 case "Enter":
@@ -1622,6 +1661,25 @@ export class TerminalScreen extends Container {
                         this.clearOutput();
                     } else if ((event as KeyboardEvent).key.length === 1) {
                         this.currentInput.text += (event as KeyboardEvent).key;
+                    }
+                    break;
+                    
+                case "ArrowUp":
+                    // Navigate command history
+                    if (this.commandHistory.length > 0) {
+                        this.historyIndex = Math.min(this.commandHistory.length - 1, this.historyIndex + 1);
+                        this.currentInput.text = this.commandHistory[this.historyIndex];
+                    }
+                    break;
+                    
+                case "ArrowDown":
+                    // Navigate command history
+                    if (this.historyIndex > 0) {
+                        this.historyIndex--;
+                        this.currentInput.text = this.commandHistory[this.historyIndex];
+                    } else if (this.historyIndex === 0) {
+                        this.historyIndex = -1;
+                        this.currentInput.text = "";
                     }
                     break;
                 

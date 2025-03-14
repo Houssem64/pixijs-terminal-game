@@ -409,6 +409,10 @@ export class MissionPanel extends Container {
         // Clear previous content
         this.contentContainer.removeChildren();
 
+        // Create a content container that can be scrolled
+        const scrollContent = new Container();
+        this.contentContainer.addChild(scrollContent);
+
         // Draw background
         this.background.clear();
         this.background.beginFill(0x111111);
@@ -422,62 +426,76 @@ export class MissionPanel extends Container {
         backButton.eventMode = 'static';
         backButton.cursor = 'pointer';
         backButton.on('pointerdown', () => this.drawMissionList());
-        this.contentContainer.addChild(backButton);
+        scrollContent.addChild(backButton);
 
         // Draw mission details - Adjust all Y positions
         const title = new Text(mission.title, this.titleStyle);
         title.x = 20;
         title.y = 150; // Increased from 50
-        this.contentContainer.addChild(title);
+        scrollContent.addChild(title);
 
         const difficulty = new Text(mission.difficulty, this.getDifficultyStyle(mission.difficulty));
         difficulty.x = 20;
         difficulty.y = 180; // Increased from 80
-        this.contentContainer.addChild(difficulty);
+        scrollContent.addChild(difficulty);
 
+        // Ensure description text wraps properly
         const description = new Text(mission.description, this.textStyle);
         description.x = 20;
         description.y = 210; // Increased from 110
-        this.contentContainer.addChild(description);
+        description.style.wordWrap = true;
+        description.style.wordWrapWidth = this.PANEL_WIDTH - 40; // Ensure proper wrapping
+        scrollContent.addChild(description);
+
+        // Calculate next vertical position based on description height
+        let nextY = description.y + description.height + 20;
 
         // Draw learning objectives - Adjust Y position
         const objectivesTitle = new Text("Learning Objectives:", this.categoryStyle);
         objectivesTitle.x = 20;
-        objectivesTitle.y = 260; // Increased from 160
-        this.contentContainer.addChild(objectivesTitle);
+        objectivesTitle.y = nextY;
+        scrollContent.addChild(objectivesTitle);
 
-        let objectiveY = 290; // Increased from 190
+        nextY += 30;
+        let objectiveY = nextY;
         mission.learningObjectives.forEach((objective, index) => {
             const bullet = new Text(`• `, this.objectiveStyle);
             bullet.x = 20;
             bullet.y = objectiveY;
-            this.contentContainer.addChild(bullet);
+            scrollContent.addChild(bullet);
 
             const objectiveText = new Text(objective, this.objectiveStyle);
             objectiveText.x = 35;
             objectiveText.y = objectiveY;
-            this.contentContainer.addChild(objectiveText);
+            objectiveText.style.wordWrap = true;
+            objectiveText.style.wordWrapWidth = this.PANEL_WIDTH - 55; // Tighter wrapping for indented text
+            scrollContent.addChild(objectiveText);
 
             objectiveY += objectiveText.height + 10;
         });
 
+        nextY = objectiveY + 10;
+
         // Draw steps
         const stepsTitle = new Text("Mission Steps:", this.categoryStyle);
         stepsTitle.x = 20;
-        stepsTitle.y = objectiveY + 10;
-        this.contentContainer.addChild(stepsTitle);
+        stepsTitle.y = nextY;
+        scrollContent.addChild(stepsTitle);
 
-        let stepY = objectiveY + 40;
+        nextY += 30;
+        let stepY = nextY;
         mission.steps.forEach((step, index) => {
             const bullet = new Text(`${index + 1}. `, this.stepStyle);
             bullet.x = 20;
             bullet.y = stepY;
-            this.contentContainer.addChild(bullet);
+            scrollContent.addChild(bullet);
 
             const stepText = new Text(step, this.stepStyle);
             stepText.x = 45;
             stepText.y = stepY;
-            this.contentContainer.addChild(stepText);
+            stepText.style.wordWrap = true;
+            stepText.style.wordWrapWidth = this.PANEL_WIDTH - 65; // Tighter wrapping for indented text
+            scrollContent.addChild(stepText);
 
             stepY += stepText.height + 10;
         });
@@ -504,7 +522,57 @@ export class MissionPanel extends Container {
         buttonText.y = startButton.height / 2 - buttonText.height / 2;
         startButton.addChild(buttonText);
         
-        this.contentContainer.addChild(startButton);
+        scrollContent.addChild(startButton);
+        
+        // Add scroll functionality
+        this.contentContainer.eventMode = 'static';
+        let isDragging = false;
+        let startY = 0;
+        let startScrollY = 0;
+        
+        // Enable scrolling by adding mouse/touch events
+        this.contentContainer.on('pointerdown', (e: FederatedPointerEvent) => {
+            isDragging = true;
+            startY = e.global.y;
+            startScrollY = scrollContent.y;
+            this.contentContainer.cursor = 'grabbing';
+        });
+        
+        this.contentContainer.on('pointermove', (e: FederatedPointerEvent) => {
+            if (isDragging) {
+                const dy = e.global.y - startY;
+                let newY = startScrollY + dy;
+                
+                // Calculate content height
+                const contentHeight = stepY + startButton.height + 60; // Total content height + padding
+                
+                // Limit scrolling
+                const minY = Math.min(0, window.innerHeight - contentHeight);
+                newY = Math.max(minY, Math.min(0, newY));
+                
+                scrollContent.y = newY;
+            }
+        });
+        
+        this.contentContainer.on('pointerup', () => {
+            isDragging = false;
+            this.contentContainer.cursor = 'auto';
+        });
+        
+        this.contentContainer.on('pointerupoutside', () => {
+            isDragging = false;
+            this.contentContainer.cursor = 'auto';
+        });
+        
+        // Enable mouse wheel scrolling
+        this.contentContainer.on('wheel', (e: WheelEvent) => {
+            const contentHeight = stepY + startButton.height + 60;
+            const minY = Math.min(0, window.innerHeight - contentHeight);
+            
+            let newY = scrollContent.y - e.deltaY;
+            newY = Math.max(minY, Math.min(0, newY));
+            scrollContent.y = newY;
+        });
     }
 
     private getDifficultyStyle(difficulty: string): TextStyle {
@@ -536,9 +604,21 @@ export class MissionPanel extends Container {
     }
 
     private startMission(mission: Mission): void {
-        // TODO: Implement mission starting logic
-        console.log(`Starting mission: ${mission.title}`);
-        // This would eventually connect to game logic to start the mission
+        // Instead of using native DOM events, use a more direct approach for Pixi.js
+        // Log the action and pass the id to the terminal
+        console.log(`Starting mission: ${mission.title} (ID: ${mission.id})`);
+        
+        // Execute the appropriate terminal command via the TerminalScreen
+        // We'll use a more direct approach by accessing the parent screen
+        const parentScreen = this.parent;
+        if (parentScreen && 'handleCommand' in parentScreen) {
+            // If parent has a handleCommand method, call it with the mission start command
+            (parentScreen as any).handleCommand(`mission start ${mission.id}`);
+        } else {
+            // Fallback - the button shows the mission in the panel but doesn't start it
+            console.warn("Could not find terminal to start mission. Mission displayed but not started.");
+            this.showMissionDetails(mission);
+        }
     }
 
     public nextMission(): void {
