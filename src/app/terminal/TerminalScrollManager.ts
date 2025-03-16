@@ -154,12 +154,16 @@ export class TerminalScrollManager {
         }
     }
     
-    public updateContentAdded(): void {
+    // Update content when anything is added to the terminal
+    public updateContentAdded(scrollToBottom: boolean = true): void {
+        // Update scrollbar visibility and state
         this.updateScrollbarVisibility();
-        // Instead of just scrolling to bottom, we'll scroll with padding by default
-        // This ensures content is properly positioned for input visibility
-        // We use a small default padding in case the specific method isn't called
-        this.scrollToBottomWithPadding(30);
+        
+        // Only scroll to bottom if requested (default) or if we were already at bottom
+        if (scrollToBottom) {
+            // Use padding to ensure input is visible
+            this.scrollToBottomWithPadding(30);
+        }
     }
     
     private updateScrollbarVisibility(): void {

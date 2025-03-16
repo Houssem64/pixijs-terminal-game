@@ -1,6 +1,7 @@
 import { FileSystem } from "../../utils/FileSystem";
 import { MissionManager, MissionData } from "../utils/MissionManager";
 import { TerminalOutput } from "./TerminalOutput";
+import { TerminalInput } from "./TerminalInput";
 
 export enum TerminalState {
     NORMAL = "normal",
@@ -25,15 +26,18 @@ export class TerminalCommandProcessor {
     private missionManager: MissionManager;
     private fileSystem: FileSystem;
     private output: TerminalOutput;
+    private input?: TerminalInput;
     
     constructor(
         output: TerminalOutput,
         fileSystem: FileSystem,
-        missionManager: MissionManager
+        missionManager: MissionManager,
+        input?: TerminalInput
     ) {
         this.output = output;
         this.fileSystem = fileSystem;
         this.missionManager = missionManager;
+        this.input = input;
         
         // Initialize environment variables and aliases
         this.initEnvironmentVariables();
@@ -125,7 +129,15 @@ export class TerminalCommandProcessor {
                     
                 case 'clear':
                 case 'cls':
-                    this.output.clear();
+                    // Use partialClear instead of clear to preserve welcome messages
+                    this.output.partialClear(3); // Preserve first 3 lines (welcome message)
+                    
+                    // Update input position after clearing
+                    if (this.input) {
+                        setTimeout(() => {
+                            this.input?.updateInputPosition();
+                        }, 0);
+                    }
                     break;
                     
                 case 'ls':

@@ -144,6 +144,104 @@ export class TerminalOutput {
         this.scrollToShowInputArea();
     }
     
+    /**
+     * Clears terminal output but preserves welcome messages
+     * @param preserveLines Number of initial lines to preserve (default: 3 for welcome message)
+     */
+    public partialClear(preserveLines: number = 3): void {
+        // Check if we have any lines to clear
+        if (this.outputHistory.length === 0) {
+            return;
+        }
+        
+        // Find welcome message lines
+        const welcomeLines = this.findWelcomeLines();
+        const numLinesToPreserve = Math.max(preserveLines, welcomeLines.length);
+        
+        // If there's nothing to clear, just return
+        if (this.outputHistory.length <= numLinesToPreserve) {
+            return;
+        }
+        
+        // Keep the welcome lines
+        const preservedTexts = welcomeLines.length > 0 ? welcomeLines : 
+                               this.outputHistory.slice(0, numLinesToPreserve);
+        
+        // Get Y position of the last line we want to preserve
+        let lastPreservedY = 0;
+        preservedTexts.forEach(text => {
+            lastPreservedY = Math.max(lastPreservedY, text.y + text.height);
+        });
+        
+        // Remember all other output lines to be removed
+        const linesToRemove = this.outputHistory.filter(text => !preservedTexts.includes(text));
+        
+        // Remove only the non-preserved lines without clearing the entire container
+        linesToRemove.forEach(text => {
+            if (text.parent) {
+                text.parent.removeChild(text);
+            }
+        });
+        
+        // Update history to only contain preserved texts
+        this.outputHistory = preservedTexts;
+        
+        // Set the next output position after the preserved content with a small gap
+        this.lastOutputY = lastPreservedY + this.lineHeight;
+        
+        // Update scrollbars but don't force scrolling to bottom
+        // We want to stay at the top where the welcome message is
+        this.scrollManager.updateContentAdded(false);
+    }
+    
+    // Get the full content height to calculate proper positions
+    private getContentHeight(): number {
+        if (this.outputHistory.length === 0) {
+            return this.paddingY;
+        }
+        
+        let maxY = 0;
+        this.outputHistory.forEach(text => {
+            maxY = Math.max(maxY, text.y + text.height);
+        });
+        
+        return maxY + this.paddingY;
+    }
+    
+    /**
+     * Find the welcome message lines in the output history
+     * @returns Array of Text objects that make up the welcome message
+     */
+    private findWelcomeLines(): Text[] {
+        const welcomeLines: Text[] = [];
+        const welcomeTexts = ["Welcome to Terminal OS", "Type 'help' to see available commands", ""];
+        
+        // Simple pattern matching for welcome messages
+        let lastFoundIndex = -1;
+        
+        for (let i = 0; i < this.outputHistory.length; i++) {
+            const text = this.outputHistory[i];
+            const displayText = text.text || "";
+            
+            // Check if this is part of the welcome message sequence
+            const expectedIndex = welcomeTexts.findIndex(
+                (welcomeText, idx) => idx > lastFoundIndex && displayText.includes(welcomeText)
+            );
+            
+            if (expectedIndex !== -1 && expectedIndex === lastFoundIndex + 1) {
+                welcomeLines.push(text);
+                lastFoundIndex = expectedIndex;
+                
+                // If we found all welcome texts, we're done
+                if (lastFoundIndex === welcomeTexts.length - 1) {
+                    break;
+                }
+            }
+        }
+        
+        return welcomeLines;
+    }
+    
     // Handle resize events to maintain proper padding
     public resize(width: number, height: number): void {
         // Ensure input area is visible after resize

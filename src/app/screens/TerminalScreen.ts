@@ -62,19 +62,20 @@ export class TerminalScreen extends Container {
         // Initialize output manager
         this.outputManager = new TerminalOutput(this, this.scrollManager, this.themeManager);
         
-        // Initialize command processor
-        this.commandProcessor = new TerminalCommandProcessor(
-            this.outputManager,
-            this.fileSystem,
-            this.missionManager
-        );
-        
         // Initialize input manager with command callback
         this.inputManager = new TerminalInput(
             this,
             this.themeManager,
             this.scrollManager,
             this.handleCommand.bind(this)
+        );
+        
+        // Initialize command processor
+        this.commandProcessor = new TerminalCommandProcessor(
+            this.outputManager,
+            this.fileSystem,
+            this.missionManager,
+            this.inputManager  // Pass the input manager to allow updating input position
         );
         
         // Add mission panel
