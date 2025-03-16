@@ -1,3 +1,4 @@
+// Import necessary dependencies
 import { Container, Graphics, FederatedPointerEvent } from "pixi.js";
 import { FileSystem } from "../../utils/FileSystem";
 import { MissionManager, MissionData } from "../utils/MissionManager";
@@ -113,12 +114,14 @@ export class TerminalScreen extends Container {
     }
     
     private showWelcomeMessage(): void {
-        // Set initial output position with offset
-        this.outputManager.setNextOutputPosition(100);
-        
+        // Let the output manager handle safe positioning
+        // No need to set a specific offset value
         this.outputManager.addOutput("Welcome to Terminal OS", false);
         this.outputManager.addOutput("Type 'help' to see available commands", false);
         this.outputManager.addOutput("", false);
+        
+        // After welcome message, update input position
+        this.inputManager.updateInputPosition();
     }
     
     private drawBackground(): void {
@@ -127,22 +130,14 @@ export class TerminalScreen extends Container {
         this.background.beginFill(this.themeManager.getTheme().background);
         this.background.drawRect(0, 0, window.innerWidth, window.innerHeight);
         this.background.endFill();
-        if (this.children.indexOf(this.background) === -1) {
-            this.addChildAt(this.background, 0);
-        } else {
-            this.setChildIndex(this.background, 0);
-        }
+        this.addChild(this.background);
         
         // Draw inner background
         this.innerBackground.clear();
         this.innerBackground.beginFill(this.themeManager.getDarkerColor(this.themeManager.getTheme().background, 0.8));
         this.innerBackground.drawRect(0, 0, window.innerWidth - this.MISSION_PANEL_WIDTH, window.innerHeight);
         this.innerBackground.endFill();
-        if (this.children.indexOf(this.innerBackground) === -1) {
-            this.addChildAt(this.innerBackground, 1);
-        } else {
-            this.setChildIndex(this.innerBackground, 1);
-        }
+        this.addChild(this.innerBackground);
     }
     
     private handleResize(): void {
