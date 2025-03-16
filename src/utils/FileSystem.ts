@@ -278,7 +278,7 @@ export class FileSystem {
             
             // Copy all children recursively
             if (sourceNode.children) {
-                for (const [childName, childNode] of Object.entries(sourceNode.children)) {
+                for (const childName of Object.keys(sourceNode.children)) {
                     this.copyFile(`${source}/${childName}`, `${destination}/${childName}`, { recursive: true });
                 }
             }

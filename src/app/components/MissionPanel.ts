@@ -377,7 +377,7 @@ export class MissionPanel extends Container {
         
         // Draw mission list - Start lower to account for PlayerStatusBar
         let missionY = 190; // Increased from 90
-        categoryMissions.forEach((mission, index) => {
+        categoryMissions.forEach((mission) => {
             const container = new Container();
             container.y = missionY;
             
@@ -458,7 +458,7 @@ export class MissionPanel extends Container {
 
         nextY += 30;
         let objectiveY = nextY;
-        mission.learningObjectives.forEach((objective, index) => {
+        mission.learningObjectives.forEach((objective) => {
             const bullet = new Text(`• `, this.objectiveStyle);
             bullet.x = 20;
             bullet.y = objectiveY;
@@ -611,9 +611,15 @@ export class MissionPanel extends Container {
         // Execute the appropriate terminal command via the TerminalScreen
         // We'll use a more direct approach by accessing the parent screen
         const parentScreen = this.parent;
+        
+        // Define an interface for the parent screen with handleCommand method
+        interface TerminalScreenLike {
+            handleCommand: (command: string) => void;
+        }
+        
         if (parentScreen && 'handleCommand' in parentScreen) {
             // If parent has a handleCommand method, call it with the mission start command
-            (parentScreen as any).handleCommand(`mission start ${mission.id}`);
+            (parentScreen as TerminalScreenLike).handleCommand(`mission start ${mission.id}`);
         } else {
             // Fallback - the button shows the mission in the panel but doesn't start it
             console.warn("Could not find terminal to start mission. Mission displayed but not started.");

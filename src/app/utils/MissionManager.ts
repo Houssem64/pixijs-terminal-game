@@ -59,6 +59,18 @@ export interface PlayerProgress {
     inventory: string[];
 }
 
+// Define interfaces for the parsed JSON data
+interface ParsedMissionData {
+    id: string;
+    state: MissionState;
+    objectives: ParsedObjectiveData[];
+}
+
+interface ParsedObjectiveData {
+    id: string;
+    completed: boolean;
+}
+
 export class MissionManager extends EventEmitter {
     private static instance: MissionManager;
     private missions: Map<string, MissionData> = new Map();
@@ -476,14 +488,14 @@ export class MissionManager extends EventEmitter {
             // Load missions data
             const missionsData = localStorage.getItem('missions');
             if (missionsData) {
-                const parsedData = JSON.parse(missionsData);
-                parsedData.forEach((data: any) => {
+                const parsedData = JSON.parse(missionsData) as ParsedMissionData[];
+                parsedData.forEach((data: ParsedMissionData) => {
                     const mission = this.missions.get(data.id);
                     if (mission) {
                         mission.state = data.state;
                         
                         // Update objectives completion
-                        data.objectives.forEach((objData: any) => {
+                        data.objectives.forEach((objData: ParsedObjectiveData) => {
                             const objective = mission.objectives.find(obj => obj.id === objData.id);
                             if (objective) {
                                 objective.completed = objData.completed;
@@ -499,7 +511,7 @@ export class MissionManager extends EventEmitter {
                 this.activeMissionId = activeMission;
             }
         } catch (error) {
-            console.error('Failed to load progress', error);
+            console.error("Error loading progress:", error);
         }
     }
 } 

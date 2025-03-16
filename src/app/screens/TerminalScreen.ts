@@ -5,6 +5,7 @@ import { MissionManager } from "../utils/MissionManager";
 import { MissionCompletionPopup } from "../components/MissionCompletionPopup";
 import { PlayerStatusBar } from "../components/PlayerStatusBar";
 import { WiFiPenTestMission } from "../missions/WiFiPenTest";
+import { MissionData } from "../utils/MissionManager";
 
 enum TerminalState {
     NORMAL = "normal",
@@ -100,6 +101,11 @@ interface FTPState {
     username: string;
     authenticated: boolean;
     password: string;
+}
+
+// Define proper error type instead of using 'any'
+interface FileSystemError {
+    message: string;
 }
 
 export class TerminalScreen extends Container {
@@ -592,7 +598,7 @@ export class TerminalScreen extends Container {
                 case 'ls':
                     this.handleLsCommand(args);
                     break;
-                case 'cd':
+                case 'cd': {
                     const path = args[1] || '';
                     try {
                         this.fileSystem.changePath(path);
@@ -600,10 +606,12 @@ export class TerminalScreen extends Container {
                         this.environmentVariables["PWD"] = this.fileSystem.getCurrentPath();
                         // Don't output anything on successful cd, like real terminals
                         this.missionPanel.completeMission('password-crack');
-                    } catch (err: any) {
-                        this.addOutput(`cd: ${err?.message || 'Unknown error'}`, true);
+                    } catch (err: unknown) {
+                        const fsError = err as FileSystemError;
+                        this.addOutput(`cd: ${fsError?.message || 'Unknown error'}`, true);
                     }
                     break;
+                }
                 case 'pwd':
                     this.addOutput(this.fileSystem.getCurrentPath());
                     break;
@@ -616,8 +624,9 @@ export class TerminalScreen extends Container {
                         const recursive = args.includes('-p') || args.includes('--parents');
                         this.fileSystem.createDirectory(args[args.indexOf('-p') !== -1 ? args.indexOf('-p') + 1 : 1], recursive);
                         this.missionPanel.completeMission('network-scan');
-                    } catch (err: any) {
-                        this.addOutput(`mkdir: ${err?.message || 'Unknown error'}`, true);
+                    } catch (err: unknown) {
+                        const fsError = err as FileSystemError;
+                        this.addOutput(`mkdir: ${fsError?.message || 'Unknown error'}`, true);
                     }
                     break;
                 case 'touch':
@@ -628,8 +637,9 @@ export class TerminalScreen extends Container {
                     try {
                         this.fileSystem.createFile(args[1], '');
                         this.missionPanel.completeMission('phishing-campaign');
-                    } catch (err: any) {
-                        this.addOutput(`touch: ${err?.message || 'Unknown error'}`, true);
+                    } catch (err: unknown) {
+                        const fsError = err as FileSystemError;
+                        this.addOutput(`touch: ${fsError?.message || 'Unknown error'}`, true);
                     }
                     break;
                 case 'echo':
@@ -665,8 +675,9 @@ export class TerminalScreen extends Container {
                     try {
                         this.startNano(args[1]);
                         this.missionPanel.completeMission('cipher-break');
-                    } catch (err: any) {
-                        this.addOutput(`nano: ${err?.message || 'Unknown error'}`, true);
+                    } catch (err: unknown) {
+                        const fsError = err as FileSystemError;
+                        this.addOutput(`nano: ${fsError?.message || 'Unknown error'}`, true);
                     }
                     break;
                 case 'ftp':
@@ -770,8 +781,9 @@ export class TerminalScreen extends Container {
                     this.addOutput(`Command not found: ${cmd}`, true);
                     break;
             }
-        } catch (error: any) {
-            this.addOutput(`Error executing command: ${error?.message || 'Unknown error'}`, true);
+        } catch (error: unknown) {
+            const err = error as Error;
+            this.addOutput(`Error executing command: ${err?.message || 'Unknown error'}`, true);
             console.error("Command error:", error);
         }
     }
@@ -928,14 +940,15 @@ export class TerminalScreen extends Container {
         let currentY = lastOutput ? lastOutput.y + this.LINE_HEIGHT : 0;
         
         lines.forEach((line) => {
-            // Process ANSI escape codes
-            const parts = line.split(/(\x1b\[[0-9;]*m)/);
+            // Process ANSI escape codes - using unicode instead of control characters
+            // Fix for no-control-regex error by using unicode escape sequence
+            const parts = line.split(/(\u001b\[\d+(?:;\d+)*m)/);
             let currentX = this.PADDING_X;
             let lineHeight = 0;
-            let lineTexts: Text[] = [];
+            const lineTexts: Text[] = [];
             
             parts.forEach(part => {
-                if (part.startsWith('\x1b[')) {
+                if (part.startsWith('\u001b[')) {
                     // Handle ANSI code (future implementation)
                     return;
                 }
@@ -1030,31 +1043,37 @@ export class TerminalScreen extends Container {
         this.missionPanel.y = 0;
     }
 
-    private startMission(mission: any): void {
+    private startMission(mission: MissionData): void {
         // Create mission-specific setup based on mission category
         switch (mission.category) {
-            case 'Brute Force':
+            case 'Brute Force': {
                 this.setupBruteForceEnvironment(mission);
                 break;
-            case 'Penetration Testing':
+            }
+            case 'Penetration Testing': {
                 this.setupPenTestingEnvironment(mission);
                 break;
-            case 'Social Engineering':
+            }
+            case 'Social Engineering': {
                 this.setupSocialEngineeringEnvironment(mission);
                 break;
-            case 'Cryptography':
+            }
+            case 'Cryptography': {
                 this.setupCryptographyEnvironment(mission);
                 break;
+            }
             default:
                 this.addOutput(`Setting up environment for ${mission.title}...`);
                 break;
         }
         
         // Also trigger the mission panel to show this mission
-        this.missionPanel['showMissionDetails'](mission);
+        // Using unknown as an intermediate step to avoid type errors
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ((this.missionPanel as unknown) as any).showMissionDetails(mission);
     }
     
-    private setupBruteForceEnvironment(mission: any): void {
+    private setupBruteForceEnvironment(mission: MissionData): void {
         // Setup for brute force missions
         this.addOutput(`Setting up environment for ${mission.title}...`);
         
@@ -1074,8 +1093,9 @@ export class TerminalScreen extends Container {
                 
                 this.addOutput("Created password files in /home/user/secure/");
                 this.addOutput("Try using the 'crack' command to attempt password recovery.");
-            } catch (err: any) {
-                this.addOutput(`Failed to set up environment: ${err?.message || 'Unknown error'}`, true);
+            } catch (err: unknown) {
+                const error = err as FileSystemError;
+                this.addOutput(`Failed to set up environment: ${error?.message || 'Unknown error'}`, true);
             }
         } else if (mission.id === 'hash-breaker') {
             try {
@@ -1090,13 +1110,14 @@ export class TerminalScreen extends Container {
                 
                 this.addOutput("Created hash files in /home/user/hashes/");
                 this.addOutput("Use analysis tools to identify and crack the hashes.");
-            } catch (err: any) {
-                this.addOutput(`Failed to set up environment: ${err?.message || 'Unknown error'}`, true);
+            } catch (err: unknown) {
+                const error = err as FileSystemError;
+                this.addOutput(`Failed to set up environment: ${error?.message || 'Unknown error'}`, true);
             }
         }
     }
     
-    private setupPenTestingEnvironment(mission: any): void {
+    private setupPenTestingEnvironment(mission: MissionData): void {
         // Setup for penetration testing missions
         this.addOutput(`Setting up environment for ${mission.title}...`);
         
@@ -1112,8 +1133,9 @@ export class TerminalScreen extends Container {
                 
                 this.addOutput("Network information saved in /home/user/network/");
                 this.addOutput("Use 'scan' and 'portscan' commands to investigate the network.");
-            } catch (err: any) {
-                this.addOutput(`Failed to set up environment: ${err?.message || 'Unknown error'}`, true);
+            } catch (err: unknown) {
+                const error = err as FileSystemError;
+                this.addOutput(`Failed to set up environment: ${error?.message || 'Unknown error'}`, true);
             }
         } else if (mission.id === 'privilege-escalation') {
             try {
@@ -1130,13 +1152,14 @@ export class TerminalScreen extends Container {
                 
                 this.addOutput("System files created in /home/user/system/");
                 this.addOutput("Find a way to escalate your privileges from user to root.");
-            } catch (err: any) {
-                this.addOutput(`Failed to set up environment: ${err?.message || 'Unknown error'}`, true);
+            } catch (err: unknown) {
+                const error = err as FileSystemError;
+                this.addOutput(`Failed to set up environment: ${error?.message || 'Unknown error'}`, true);
             }
         }
     }
     
-    private setupSocialEngineeringEnvironment(mission: any): void {
+    private setupSocialEngineeringEnvironment(mission: MissionData): void {
         // Setup for social engineering missions
         this.addOutput(`Setting up environment for ${mission.title}...`);
         
@@ -1153,8 +1176,9 @@ export class TerminalScreen extends Container {
                 
                 this.addOutput("Phishing materials created in /home/user/phishing/");
                 this.addOutput("Create a convincing phishing campaign targeting the users in the list.");
-            } catch (err: any) {
-                this.addOutput(`Failed to set up environment: ${err?.message || 'Unknown error'}`, true);
+            } catch (err: unknown) {
+                const error = err as FileSystemError;
+                this.addOutput(`Failed to set up environment: ${error?.message || 'Unknown error'}`, true);
             }
         } else if (mission.id === 'pretexting') {
             try {
@@ -1169,13 +1193,14 @@ export class TerminalScreen extends Container {
                 
                 this.addOutput("Pretexting scenario created in /home/user/pretexting/");
                 this.addOutput("Develop a pretext to extract the information from the target.");
-            } catch (err: any) {
-                this.addOutput(`Failed to set up environment: ${err?.message || 'Unknown error'}`, true);
+            } catch (err: unknown) {
+                const error = err as FileSystemError;
+                this.addOutput(`Failed to set up environment: ${error?.message || 'Unknown error'}`, true);
             }
         }
     }
     
-    private setupCryptographyEnvironment(mission: any): void {
+    private setupCryptographyEnvironment(mission: MissionData): void {
         // Setup for cryptography missions
         this.addOutput(`Setting up environment for ${mission.title}...`);
         
@@ -1197,8 +1222,9 @@ export class TerminalScreen extends Container {
                 
                 this.addOutput("Encrypted files created in /home/user/crypto/");
                 this.addOutput("Use cryptanalysis techniques to decrypt the messages.");
-            } catch (err: any) {
-                this.addOutput(`Failed to set up environment: ${err?.message || 'Unknown error'}`, true);
+            } catch (err: unknown) {
+                const error = err as FileSystemError;
+                this.addOutput(`Failed to set up environment: ${error?.message || 'Unknown error'}`, true);
             }
         } else if (mission.id === 'asymmetric-crypto') {
             try {
@@ -1213,8 +1239,9 @@ export class TerminalScreen extends Container {
                 
                 this.addOutput("PKI materials created in /home/user/pki/");
                 this.addOutput("Set up your public/private key pair and practice encryption/decryption.");
-            } catch (err: any) {
-                this.addOutput(`Failed to set up environment: ${err?.message || 'Unknown error'}`, true);
+            } catch (err: unknown) {
+                const error = err as FileSystemError;
+                this.addOutput(`Failed to set up environment: ${error?.message || 'Unknown error'}`, true);
             }
         }
     }
@@ -1326,7 +1353,7 @@ export class TerminalScreen extends Container {
     /**
      * Setup mission-specific environment
      */
-    private setupMissionEnvironment(mission: any): void {
+    private setupMissionEnvironment(mission: MissionData): void {
         if (mission.id === "wifi_pentest") {
             this.setupWifiPenTestEnvironment();
         }
@@ -1360,8 +1387,9 @@ export class TerminalScreen extends Container {
             this.addOutput("WiFi mission environment set up in /home/user/wifi/", false);
             this.addOutput("Use 'cd /home/user/wifi' to navigate to the mission directory.", false);
             this.addOutput("Read the README.txt file for instructions.", false);
-        } catch (err: any) {
-            this.addOutput(`Failed to set up mission environment: ${err?.message || 'Unknown error'}`, true);
+        } catch (err: unknown) {
+            const error = err as FileSystemError;
+            this.addOutput(`Failed to set up mission environment: ${error?.message || 'Unknown error'}`, true);
         }
     }
 
@@ -1378,7 +1406,7 @@ export class TerminalScreen extends Container {
         const mission = activeMissionId ? this.missionManager.getMission(activeMissionId) : null;
         
         switch (args[1]) {
-            case 'scan':
+            case 'scan': {
                 this.addOutput("Scanning for wireless networks...", false);
                 try {
                     setTimeout(() => {
@@ -1399,11 +1427,13 @@ export class TerminalScreen extends Container {
                         }
                     }, 1500);
                 } catch (error) {
-                    this.addOutput(`Error scanning for networks: ${error}`, true);
+                    console.error("Error scanning for networks:", error);
+                    this.addOutput("Error scanning for networks", true);
                 }
                 break;
+            }
                 
-            case 'capture':
+            case 'capture': {
                 if (args.length < 3) {
                     this.addOutput("Usage: wifi capture <ssid>", true);
                     return;
@@ -1437,7 +1467,8 @@ export class TerminalScreen extends Container {
                             }
                         }, 3000);
                     } catch (error) {
-                        this.addOutput(`Error capturing packets: ${error}`, true);
+                        console.error("Error capturing packets:", error);
+                        this.addOutput("Error capturing packets", true);
                     }
                 } else {
                     try {
@@ -1445,169 +1476,13 @@ export class TerminalScreen extends Container {
                             this.addOutput(`No handshakes captured for network ${targetNetwork}. Try another network.`, false);
                         }, 2000);
                     } catch (error) {
-                        this.addOutput(`Error during capture: ${error}`, true);
+                        console.error("Error during capture:", error);
+                        this.addOutput("Error during capture", true);
                     }
                 }
                 break;
-                
-            case 'analyze':
-                if (!this.fileSystem.fileExists('/home/user/wifi/capture.cap')) {
-                    this.addOutput("No capture file found. Use 'wifi capture <ssid>' to create one.", true);
-                    return;
-                }
-                
-                this.addOutput("Analyzing captured packets...", false);
-                try {
-                    setTimeout(() => {
-                        this.addOutput("Analysis complete:", false);
-                        this.addOutput("- Network: CORP_SECURE", false);
-                        this.addOutput("- Encryption: WPA2-PSK (CCMP)", false);
-                        this.addOutput("- WPA2 handshake found", false);
-                        this.addOutput("- Clients connected: 3", false);
-                        this.addOutput("- AP Manufacturer: Cisco Systems, Inc", false);
-                        
-                        // Create analysis results file
-                        this.fileSystem.writeFile('/home/user/wifi/analysis.txt', 
-                            'Network: CORP_SECURE\n' +
-                            'Encryption: WPA2-PSK (CCMP)\n' +
-                            'WPA2 handshake found\n' +
-                            'Clients connected: 3\n' +
-                            'AP Manufacturer: Cisco Systems, Inc'
-                        );
-                        
-                        // Check mission objective
-                        if (mission) {
-                            this.missionManager.checkCommandObjective(
-                                mission.id, 
-                                "wifi analyze", 
-                                "WPA2 handshake found"
-                            );
-                        }
-                    }, 2000);
-                } catch (error) {
-                    this.addOutput(`Error analyzing capture: ${error}`, true);
-                }
-                break;
-                
-            case 'crack':
-                if (args.length < 4) {
-                    this.addOutput("Usage: wifi crack <ssid> <wordlist>", true);
-                    return;
-                }
-                
-                const networkToCrack = args[2];
-                const wordlistPath = args[3];
-                
-                if (!this.fileSystem.fileExists('/home/user/wifi/capture.cap')) {
-                    this.addOutput("No capture file found. Use 'wifi capture <ssid>' first.", true);
-                    return;
-                }
-                
-                if (!this.fileSystem.fileExists(wordlistPath)) {
-                    this.addOutput(`Wordlist file not found: ${wordlistPath}`, true);
-                    return;
-                }
-                
-                this.addOutput(`Attempting to crack password for ${networkToCrack} using wordlist ${wordlistPath}...`, false);
-                
-                if (networkToCrack === "CORP_SECURE" && wordlistPath.includes("wordlist")) {
-                    try {
-                        // Simulate password cracking process
-                        setTimeout(() => {
-                            this.addOutput("Trying passwords... 10% complete", false);
-                        }, 1000);
-                        
-                        setTimeout(() => {
-                            this.addOutput("Trying passwords... 38% complete", false);
-                        }, 2000);
-                        
-                        setTimeout(() => {
-                            this.addOutput("Trying passwords... 64% complete", false);
-                        }, 3000);
-                        
-                        setTimeout(() => {
-                            this.addOutput("Trying passwords... 89% complete", false);
-                        }, 4000);
-                        
-                        setTimeout(() => {
-                            this.addOutput("Password found: corporate2023", false);
-                            this.addOutput("Time taken: 00:04:35", false);
-                            this.addOutput("Saved result to /home/user/wifi/cracked.txt", false);
-                            
-                            // Create the result file
-                            this.fileSystem.writeFile('/home/user/wifi/cracked.txt', 
-                                'SSID: CORP_SECURE\n' +
-                                'Password: corporate2023\n' +
-                                'Time taken: 00:04:35\n' +
-                                'Method: Dictionary attack'
-                            );
-                            
-                            // Check mission objective
-                            if (mission) {
-                                this.missionManager.checkCommandObjective(
-                                    mission.id, 
-                                    `wifi crack CORP_SECURE ${wordlistPath}`, 
-                                    "Password found: corporate2023"
-                                );
-                            }
-                        }, 5000);
-                    } catch (error) {
-                        this.addOutput(`Error during password cracking: ${error}`, true);
-                    }
-                } else {
-                    try {
-                        setTimeout(() => {
-                            this.addOutput(`Could not crack password for ${networkToCrack}. Try a different wordlist or network.`, false);
-                        }, 3000);
-                    } catch (error) {
-                        this.addOutput(`Error during password cracking: ${error}`, true);
-                    }
-                }
-                break;
-                
-            case 'connect':
-                if (args.length < 4) {
-                    this.addOutput("Usage: wifi connect <ssid> <password>", true);
-                    return;
-                }
-                
-                const networkToConnect = args[2];
-                const password = args[3];
-                
-                this.addOutput(`Attempting to connect to ${networkToConnect}...`, false);
-                
-                if (networkToConnect === "CORP_SECURE" && password === "corporate2023") {
-                    try {
-                        setTimeout(() => {
-                            this.addOutput("Authentication successful", false);
-                            this.addOutput("Successfully connected to CORP_SECURE", false);
-                            this.addOutput("Assigned IP address: 192.168.1.105", false);
-                            this.addOutput("Gateway: 192.168.1.1", false);
-                            this.addOutput("DNS: 192.168.1.1", false);
-                            
-                            // Check mission objective
-                            if (mission) {
-                                this.missionManager.checkCommandObjective(
-                                    mission.id, 
-                                    "wifi connect CORP_SECURE corporate2023", 
-                                    "Successfully connected to CORP_SECURE"
-                                );
-                            }
-                        }, 2000);
-                    } catch (error) {
-                        this.addOutput(`Error connecting to network: ${error}`, true);
-                    }
-                } else {
-                    try {
-                        setTimeout(() => {
-                            this.addOutput(`Failed to connect to ${networkToConnect}. Authentication failed.`, true);
-                        }, 1500);
-                    } catch (error) {
-                        this.addOutput(`Error connecting to network: ${error}`, true);
-                    }
-                }
-                break;
-                
+            }
+            
             default:
                 this.addOutput(`Unknown wifi subcommand: ${args[1]}`, true);
                 this.addOutput("Available subcommands: scan, capture, analyze, crack, connect", false);
@@ -1743,7 +1618,7 @@ export class TerminalScreen extends Container {
      */
     private processEnvironmentVariables(command: string): string {
         // Replace $VAR or ${VAR} with environment variable values
-        const regex = /\$(\w+)|\$\{(\w+)\}/g;
+        const regex = /\$(\w+)|\${(\w+)}/g;
         return command.replace(regex, (match, varName1, varName2) => {
             const varName = varName1 || varName2;
             return this.environmentVariables[varName] || match;

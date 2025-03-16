@@ -155,7 +155,7 @@ export class PlayerStatusBar extends Container {
      * Resize the component
      * No longer need to position it as this is handled by TerminalScreen
      */
-    public resize(width: number, height: number): void {
+    public resize(): void {
         // Simply redraw to ensure proper appearance
         this.draw();
     }
