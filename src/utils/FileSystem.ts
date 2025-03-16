@@ -15,26 +15,133 @@ export class FileSystem {
     private static instance: FileSystem;
     private root: FileSystemNode;
     private currentPath: string;
+    private static readonly STORAGE_KEY = 'terminal_filesystem_state';
 
     private constructor() {
-        this.root = {
-            type: 'directory',
-            name: '/',
-            children: {
-                'home': {
-                    type: 'directory',
-                    name: 'home',
-                    children: {
-                        'user': {
-                            type: 'directory',
-                            name: 'user',
-                            children: {}
+        // Try to load from localStorage
+        const savedState = this.loadState();
+        
+        if (savedState) {
+            this.root = savedState.root;
+            this.currentPath = savedState.currentPath;
+            console.log("Loaded file system from localStorage");
+        } else {
+            // Default initial state
+            this.root = {
+                type: 'directory',
+                name: '/',
+                children: {
+                    'home': {
+                        type: 'directory',
+                        name: 'home',
+                        children: {
+                            'user': {
+                                type: 'directory',
+                                name: 'user',
+                                children: {
+                                    'documents': {
+                                        type: 'directory',
+                                        name: 'documents',
+                                        children: {
+                                            'welcome.txt': {
+                                                type: 'file',
+                                                name: 'welcome.txt',
+                                                content: 'Welcome to Terminal OS!\n\nThis is your home directory.\nFeel free to explore the system using commands like ls, cd, and cat.\n\nType "help" to see available commands.',
+                                                createdAt: new Date(),
+                                                modifiedAt: new Date()
+                                            }
+                                        },
+                                        permissions: 'drwxr-xr-x',
+                                        owner: 'user',
+                                        group: 'users',
+                                        createdAt: new Date(),
+                                        modifiedAt: new Date()
+                                    },
+                                    'projects': {
+                                        type: 'directory',
+                                        name: 'projects',
+                                        children: {},
+                                        permissions: 'drwxr-xr-x',
+                                        owner: 'user',
+                                        group: 'users',
+                                        createdAt: new Date(),
+                                        modifiedAt: new Date()
+                                    },
+                                    '.bashrc': {
+                                        type: 'file',
+                                        name: '.bashrc',
+                                        content: '# .bashrc file\n# This file contains user-specific bash shell configuration\n\n# Define aliases\nalias ls="ls --color=auto"\nalias ll="ls -l"\nalias la="ls -la"\n',
+                                        permissions: '-rw-r--r--',
+                                        owner: 'user',
+                                        group: 'users',
+                                        createdAt: new Date(),
+                                        modifiedAt: new Date()
+                                    }
+                                }
+                            }
                         }
+                    },
+                    'bin': {
+                        type: 'directory',
+                        name: 'bin',
+                        children: {
+                            'ls': {
+                                type: 'file',
+                                name: 'ls',
+                                content: '#!/bin/bash\n# ls command implementation',
+                                permissions: '-rwxr-xr-x',
+                                owner: 'root',
+                                group: 'root',
+                                executable: true,
+                                createdAt: new Date(),
+                                modifiedAt: new Date()
+                            },
+                            'cat': {
+                                type: 'file',
+                                name: 'cat',
+                                content: '#!/bin/bash\n# cat command implementation',
+                                permissions: '-rwxr-xr-x',
+                                owner: 'root',
+                                group: 'root',
+                                executable: true,
+                                createdAt: new Date(),
+                                modifiedAt: new Date()
+                            }
+                        },
+                        permissions: 'drwxr-xr-x',
+                        owner: 'root',
+                        group: 'root',
+                        createdAt: new Date(),
+                        modifiedAt: new Date()
+                    },
+                    'etc': {
+                        type: 'directory',
+                        name: 'etc',
+                        children: {
+                            'hosts': {
+                                type: 'file',
+                                name: 'hosts',
+                                content: '127.0.0.1 localhost\n127.0.1.1 terminal-os',
+                                permissions: '-rw-r--r--',
+                                owner: 'root',
+                                group: 'root',
+                                createdAt: new Date(),
+                                modifiedAt: new Date()
+                            }
+                        },
+                        permissions: 'drwxr-xr-x',
+                        owner: 'root',
+                        group: 'root',
+                        createdAt: new Date(),
+                        modifiedAt: new Date()
                     }
                 }
-            }
-        };
-        this.currentPath = '/home/user';
+            };
+            this.currentPath = '/home/user';
+            
+            // Save the initial state
+            this.saveState();
+        }
     }
 
     static getInstance(): FileSystem {
@@ -42,6 +149,85 @@ export class FileSystem {
             FileSystem.instance = new FileSystem();
         }
         return FileSystem.instance;
+    }
+
+    // Save state to localStorage
+    private saveState(): void {
+        try {
+            // Create a serializable version of the state
+            const serializableState = {
+                root: this.prepareForSerialization(this.root),
+                currentPath: this.currentPath
+            };
+            
+            localStorage.setItem(FileSystem.STORAGE_KEY, JSON.stringify(serializableState));
+            console.log("Saved file system state to localStorage");
+        } catch (error) {
+            console.error("Failed to save file system state:", error);
+        }
+    }
+    
+    // Convert Date objects to strings for serialization
+    private prepareForSerialization(node: FileSystemNode): any {
+        const result: any = { ...node };
+        
+        // Convert Date objects to ISO strings
+        if (node.createdAt instanceof Date) {
+            result.createdAt = node.createdAt.toISOString();
+        }
+        if (node.modifiedAt instanceof Date) {
+            result.modifiedAt = node.modifiedAt.toISOString();
+        }
+        
+        // Process children recursively
+        if (node.children) {
+            result.children = {};
+            for (const [key, childNode] of Object.entries(node.children)) {
+                result.children[key] = this.prepareForSerialization(childNode);
+            }
+        }
+        
+        return result;
+    }
+
+    // Load state from localStorage
+    private loadState(): { root: FileSystemNode, currentPath: string } | null {
+        try {
+            const savedState = localStorage.getItem(FileSystem.STORAGE_KEY);
+            if (savedState) {
+                const parsedState = JSON.parse(savedState);
+                return {
+                    root: this.restoreFromSerialization(parsedState.root),
+                    currentPath: parsedState.currentPath
+                };
+            }
+        } catch (error) {
+            console.error("Failed to load file system state:", error);
+        }
+        return null;
+    }
+    
+    // Convert string dates back to Date objects
+    private restoreFromSerialization(node: any): FileSystemNode {
+        const result: FileSystemNode = { ...node };
+        
+        // Convert ISO strings back to Date objects
+        if (typeof node.createdAt === 'string') {
+            result.createdAt = new Date(node.createdAt);
+        }
+        if (typeof node.modifiedAt === 'string') {
+            result.modifiedAt = new Date(node.modifiedAt);
+        }
+        
+        // Process children recursively
+        if (node.children) {
+            result.children = {};
+            for (const [key, childNode] of Object.entries(node.children)) {
+                result.children[key] = this.restoreFromSerialization(childNode);
+            }
+        }
+        
+        return result;
     }
 
     getCurrentPath(): string {
@@ -63,14 +249,51 @@ export class FileSystem {
         return current;
     }
 
-    private normalizePath(path: string): string {
+    normalizePath(path: string): string {
         if (path.startsWith('~')) {
             path = '/home/user' + path.slice(1);
         }
+        
+        // Special case for ..
+        if (path === '..') {
+            // Go up one directory
+            if (this.currentPath === '/') {
+                return '/'; // Already at root
+            }
+            
+            const parts = this.currentPath.split('/').filter(p => p);
+            if (parts.length === 0) {
+                return '/';
+            }
+            
+            parts.pop(); // Remove last part
+            return '/' + parts.join('/');
+        }
+        
         if (!path.startsWith('/')) {
             path = this.currentPath + '/' + path;
         }
-        return path;
+        
+        // Resolve '..' in the middle of paths
+        const parts = path.split('/');
+        const resolvedParts = [];
+        
+        for (const part of parts) {
+            if (part === '' || part === '.') {
+                // Skip empty parts and current directory
+                continue;
+            } else if (part === '..') {
+                // Go up one directory
+                if (resolvedParts.length > 0) {
+                    resolvedParts.pop();
+                }
+            } else {
+                resolvedParts.push(part);
+            }
+        }
+        
+        // Ensure path starts with /
+        return '/' + resolvedParts.join('/');
     }
 
     listFiles(path?: string, options?: { showHidden?: boolean, longFormat?: boolean }): string[] {
@@ -95,11 +318,17 @@ export class FileSystem {
                 const size = fileNode.type === 'file' ? (fileNode.content?.length || 0) : 4096;
                 const date = new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
                 
-                return `${permissions} 1 ${owner} ${group} ${size} ${date} ${file}${fileNode.type === 'directory' ? '/' : ''}`;
+                return `${permissions} 1 ${owner} ${group} ${size} ${date} ${file}${fileNode.type === 'directory' ? '/' : fileNode.executable ? '*' : ''}`;
             });
         }
         
-        return visibleFiles;
+        // For regular format, add trailing slashes to directories
+        return visibleFiles.map(file => {
+            const fileNode = node.children?.[file];
+            if (!fileNode) return file;
+            
+            return file + (fileNode.type === 'directory' ? '/' : '');
+        });
     }
 
     findFiles(path: string): string[] {
@@ -162,6 +391,9 @@ export class FileSystem {
                 }
             }
             
+            // Save state after modification
+            this.saveState();
+            
             return true;
         }
         
@@ -186,6 +418,9 @@ export class FileSystem {
             modifiedAt: new Date()
         };
         
+        // Save state after modification
+        this.saveState();
+        
         return true;
     }
 
@@ -205,6 +440,10 @@ export class FileSystem {
             name: fileName,
             content: content
         };
+        
+        // Save state after modification
+        this.saveState();
+        
         return true;
     }
 
@@ -217,15 +456,54 @@ export class FileSystem {
     writeFile(path: string, content: string): boolean {
         const node = this.getNodeFromPath(this.normalizePath(path));
         if (!node || node.type !== 'file') return false;
+        
+        // Update content
         node.content = content;
+        
+        // Update timestamps
+        node.modifiedAt = new Date();
+        
+        // Save state after modification
+        this.saveState();
+        
         return true;
     }
 
     changePath(path: string): boolean {
-        const normalizedPath = this.normalizePath(path);
+        let normalizedPath = this.normalizePath(path);
+        
+        // Handle special cases for cd
+        if (path === '..') {
+            if (this.currentPath === '/') {
+                return true; // Already at root, no change needed
+            }
+            
+            const parts = this.currentPath.split('/').filter(p => p);
+            if (parts.length === 0) {
+                this.currentPath = '/';
+                return true;
+            }
+            
+            parts.pop(); // Remove last part
+            this.currentPath = '/' + parts.join('/');
+            if (this.currentPath === '') {
+                this.currentPath = '/';
+            }
+            
+            // Save state after modification
+            this.saveState();
+            
+            return true;
+        }
+        
+        // For regular paths
         const node = this.getNodeFromPath(normalizedPath);
         if (!node || node.type !== 'directory') return false;
         this.currentPath = normalizedPath;
+        
+        // Save state after modification
+        this.saveState();
+        
         return true;
     }
 
@@ -247,6 +525,10 @@ export class FileSystem {
         }
         
         delete parent.children[fileName];
+        
+        // Save state after modification
+        this.saveState();
+        
         return true;
     }
 
@@ -283,6 +565,9 @@ export class FileSystem {
                 }
             }
             
+            // Save state after modification
+            this.saveState();
+            
             return true;
         }
         
@@ -298,13 +583,20 @@ export class FileSystem {
             executable: sourceNode.executable
         };
         
+        // Save state after modification
+        this.saveState();
+        
         return true;
     }
 
     moveFile(source: string, destination: string): boolean {
         // Implement as copy + delete
         if (this.copyFile(source, destination, { recursive: true })) {
-            return this.removeFile(source, { recursive: true });
+            const result = this.removeFile(source, { recursive: true });
+            
+            // State already saved in copyFile and removeFile
+            
+            return result;
         }
         return false;
     }
