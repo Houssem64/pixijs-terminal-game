@@ -214,7 +214,11 @@ export class TerminalInput {
     }
     
     public updateInputPosition(): void {
-        if (!this.inputContainer.parent) return;
+        if (!this.inputContainer.parent) {
+            // Reattach the input container to content container if needed
+            const contentContainer = this.scrollManager.getContentContainer();
+            contentContainer.addChild(this.inputContainer);
+        }
         
         // Get the content container from scroll manager
         const contentContainer = this.scrollManager.getContentContainer();
@@ -229,20 +233,37 @@ export class TerminalInput {
             maxBottomY = Math.max(maxBottomY, bottomY);
         }
         
-        // Add input to the content container to ensure proper scrolling
+        // Ensure the input container is a child of the content container
         if (this.inputContainer.parent !== contentContainer) {
-            this.inputContainer.parent.removeChild(this.inputContainer);
+            if (this.inputContainer.parent) {
+                this.inputContainer.parent.removeChild(this.inputContainer);
+            }
             contentContainer.addChild(this.inputContainer);
         }
         
-        // Get the visible viewport height (account for mission panel width)
+        // Reset alpha to ensure visibility (sometimes alpha can be set to 0)
+        this.inputContainer.alpha = 1;
+        this.currentInput.alpha = 1;
+        this.promptText.alpha = 1;
+        this.cursorGraphics.alpha = 1;
+        
+        // Make sure the container is visible
+        this.inputContainer.visible = true;
+        this.currentInput.visible = true;
+        this.promptText.visible = true;
+        
+        // Get the visible viewport height
         const viewportHeight = window.innerHeight - (this.paddingY * 2);
         
         // Position input below the last output with padding
         // Ensure it's within the visible viewport
         const safeTopMargin = 5; // Small margin from the top of the viewport
         const initialOffset = safeTopMargin + this.paddingY;
-        const y = Math.max(maxBottomY + this.paddingY, initialOffset);
+        
+        // After a clear command maxBottomY might be very small, use a reasonable minimum
+        // This ensures the input doesn't jump to the top unexpectedly
+        const minInputY = initialOffset + this.lineHeight * 4;  // Allow room for welcome message
+        const y = Math.max(maxBottomY + this.paddingY, minInputY);
         
         // Update positions
         this.promptText.x = this.paddingX;
@@ -251,15 +272,23 @@ export class TerminalInput {
         this.currentInput.x = this.promptText.x + this.promptText.width;
         this.currentInput.y = y;
         
-        // Position cursor
-        const cursorX = this.currentInput.x + this.getCursorXOffset();
+        // Update cursor position
         this.cursorGraphics.clear();
-        this.cursorGraphics.beginFill(this.themeManager.getTheme().cursor);
+        this.cursorGraphics.beginFill(this.themeManager.getTheme().cursor || this.themeManager.getTheme().foreground);
+        
+        const cursorX = this.currentInput.x + this.getCursorXOffset();
         this.cursorGraphics.drawRect(cursorX, y, 2, this.lineHeight);
         this.cursorGraphics.endFill();
         
-        // Update scroll to ensure input is visible
-        this.scrollManager.updateContentAdded();
+        // Ensure the cursor is visible
+        this.cursorGraphics.visible = true;
+        
+        // Force cursor to blink again
+        this.stopCursorBlink();
+        this.startCursorBlink();
+        
+        // Make sure the input is visible (scroll to it if needed)
+        this.scrollManager.scrollToBottomWithPadding(this.lineHeight * 3);
     }
     
     private getCursorXOffset(): number {

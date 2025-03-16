@@ -145,6 +145,71 @@ export class TerminalOutput {
     }
     
     /**
+     * Find the welcome message lines in the output history
+     * @returns Array of Text objects that make up the welcome message
+     */
+    private findWelcomeLines(): Text[] {
+        const welcomeLines: Text[] = [];
+        const welcomeTexts = ["Welcome to Terminal OS", "Type 'help' to see available commands", ""];
+        
+        // Only check the very first few lines
+        const maxLinesToCheck = Math.min(10, this.outputHistory.length);
+        const candidates: Text[] = [];
+        
+        // First, gather all exact matches from the first few lines
+        for (let i = 0; i < maxLinesToCheck; i++) {
+            const text = this.outputHistory[i];
+            const textContent = text.text;
+            
+            // Check for exact match with welcome texts
+            if (welcomeTexts.includes(textContent)) {
+                candidates.push(text);
+            }
+        }
+        
+        // If we don't have enough candidates, return empty
+        if (candidates.length < welcomeTexts.length) {
+            return [];
+        }
+        
+        // Find exact welcome messages in order
+        let lastFoundIndex = -1;
+        for (const welcomeText of welcomeTexts) {
+            let found = false;
+            
+            for (const candidate of candidates) {
+                // Skip candidates that are already used
+                if (welcomeLines.includes(candidate)) continue;
+                
+                // Check for exact match with this welcome text
+                if (candidate.text === welcomeText) {
+                    welcomeLines.push(candidate);
+                    found = true;
+                    break;
+                }
+            }
+            
+            // If we couldn't find this welcome text, return empty
+            if (!found) {
+                return [];
+            }
+        }
+        
+        // Check that welcome lines are roughly in order by Y position
+        for (let i = 1; i < welcomeLines.length; i++) {
+            const prevLine = welcomeLines[i-1];
+            const currLine = welcomeLines[i];
+            
+            // If lines are out of order by more than a small amount, return empty
+            if (currLine.y < prevLine.y) {
+                return [];
+            }
+        }
+        
+        return welcomeLines;
+    }
+    
+    /**
      * Clears terminal output but preserves welcome messages
      * @param preserveLines Number of initial lines to preserve (default: 3 for welcome message)
      */
@@ -154,18 +219,31 @@ export class TerminalOutput {
             return;
         }
         
-        // Find welcome message lines
-        const welcomeLines = this.findWelcomeLines();
-        const numLinesToPreserve = Math.max(preserveLines, welcomeLines.length);
+        // Define the welcome texts that should be preserved
+        const welcomeTexts = ["Welcome to Terminal OS", "Type 'help' to see available commands", ""];
         
-        // If there's nothing to clear, just return
-        if (this.outputHistory.length <= numLinesToPreserve) {
-            return;
+        // Find welcome message lines with exact pattern matching
+        const welcomeLines = this.findWelcomeLines();
+        
+        // ONLY preserve the exact welcome message lines - no fallback
+        let preservedTexts: Text[] = welcomeLines;
+        
+        // If we couldn't find all welcome messages, then fallback to clear everything
+        if (preservedTexts.length < welcomeTexts.length) {
+            preservedTexts = [];
         }
         
-        // Keep the welcome lines
-        const preservedTexts = welcomeLines.length > 0 ? welcomeLines : 
-                               this.outputHistory.slice(0, numLinesToPreserve);
+        // Find the input field elements to preserve - we need to do this before clearing
+        const contentContainer = this.scrollManager.getContentContainer();
+        const inputElements: any[] = [];
+        
+        // Identify all input container elements to preserve (they won't be in outputHistory)
+        contentContainer.children.forEach(child => {
+            // Check if this is likely part of the input (by checking if it's not in output history)
+            if (!this.outputHistory.includes(child as any)) {
+                inputElements.push(child);
+            }
+        });
         
         // Get Y position of the last line we want to preserve
         let lastPreservedY = 0;
@@ -173,25 +251,34 @@ export class TerminalOutput {
             lastPreservedY = Math.max(lastPreservedY, text.y + text.height);
         });
         
-        // Remember all other output lines to be removed
-        const linesToRemove = this.outputHistory.filter(text => !preservedTexts.includes(text));
-        
-        // Remove only the non-preserved lines without clearing the entire container
-        linesToRemove.forEach(text => {
-            if (text.parent) {
-                text.parent.removeChild(text);
+        // Temporarily remove input elements to prevent them from being cleared
+        inputElements.forEach(input => {
+            if (input.parent) {
+                input.parent.removeChild(input);
             }
+        });
+        
+        // Clear all text
+        this.outputContainer.removeChildren();
+        
+        // Add back just the preserved lines
+        preservedTexts.forEach(text => {
+            this.outputContainer.addChild(text);
+        });
+        
+        // Add back input elements
+        inputElements.forEach(input => {
+            this.outputContainer.addChild(input);
         });
         
         // Update history to only contain preserved texts
         this.outputHistory = preservedTexts;
         
-        // Set the next output position after the preserved content with a small gap
-        this.lastOutputY = lastPreservedY + this.lineHeight;
+        // Set the next output position after the preserved content with a gap
+        this.lastOutputY = preservedTexts.length > 0 ? lastPreservedY + this.lineHeight : this.paddingY + 5;
         
-        // Update scrollbars but don't force scrolling to bottom
-        // We want to stay at the top where the welcome message is
-        this.scrollManager.updateContentAdded(false);
+        // Reset scrolling state to fix issues when scrollbar was present
+        this.scrollManager.resetScroll();
     }
     
     // Get the full content height to calculate proper positions
@@ -208,43 +295,17 @@ export class TerminalOutput {
         return maxY + this.paddingY;
     }
     
-    /**
-     * Find the welcome message lines in the output history
-     * @returns Array of Text objects that make up the welcome message
-     */
-    private findWelcomeLines(): Text[] {
-        const welcomeLines: Text[] = [];
-        const welcomeTexts = ["Welcome to Terminal OS", "Type 'help' to see available commands", ""];
-        
-        // Simple pattern matching for welcome messages
-        let lastFoundIndex = -1;
-        
-        for (let i = 0; i < this.outputHistory.length; i++) {
-            const text = this.outputHistory[i];
-            const displayText = text.text || "";
-            
-            // Check if this is part of the welcome message sequence
-            const expectedIndex = welcomeTexts.findIndex(
-                (welcomeText, idx) => idx > lastFoundIndex && displayText.includes(welcomeText)
-            );
-            
-            if (expectedIndex !== -1 && expectedIndex === lastFoundIndex + 1) {
-                welcomeLines.push(text);
-                lastFoundIndex = expectedIndex;
-                
-                // If we found all welcome texts, we're done
-                if (lastFoundIndex === welcomeTexts.length - 1) {
-                    break;
-                }
-            }
-        }
-        
-        return welcomeLines;
-    }
-    
     // Handle resize events to maintain proper padding
     public resize(width: number, height: number): void {
         // Ensure input area is visible after resize
         this.scrollToShowInputArea();
+    }
+    
+    /**
+     * Returns a copy of the current output history array
+     * This can be used for analyzing what's currently displayed
+     */
+    public getOutputHistory(): Text[] {
+        return [...this.outputHistory];
     }
 } 

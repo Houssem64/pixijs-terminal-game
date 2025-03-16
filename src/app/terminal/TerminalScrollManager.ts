@@ -166,6 +166,27 @@ export class TerminalScrollManager {
         }
     }
     
+    /**
+     * Reset scroll state completely - useful after clearing the terminal
+     * to ensure proper rendering when the scrollbar was previously visible
+     */
+    public resetScroll(): void {
+        // Reset scroll position to top
+        this.scrollPosition = 0;
+        
+        // Update scrollbar visibility based on current content
+        this.updateScrollbarVisibility();
+        
+        // Force content to be positioned at the top
+        this.contentContainer.y = 0;
+        
+        // Make sure scrollbar is hidden if content fits
+        if (!this.scrollbarVisible) {
+            this.scrollbar.visible = false;
+            this.scrollbarTrack.visible = false;
+        }
+    }
+    
     private updateScrollbarVisibility(): void {
         if (this.contentContainer.children.length === 0) {
             this.scrollbarVisible = false;

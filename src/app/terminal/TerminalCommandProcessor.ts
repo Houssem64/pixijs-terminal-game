@@ -132,11 +132,45 @@ export class TerminalCommandProcessor {
                     // Use partialClear instead of clear to preserve welcome messages
                     this.output.partialClear(3); // Preserve first 3 lines (welcome message)
                     
-                    // Update input position after clearing
+                    // Update input position after clearing - use a delay to ensure DOM is updated
                     if (this.input) {
-                        setTimeout(() => {
-                            this.input?.updateInputPosition();
-                        }, 0);
+                        // Update immediately
+                        this.input.updateInputPosition();
+                        
+                        // Multiple delayed updates to ensure proper rendering across frames
+                        setTimeout(() => this.input?.updateInputPosition(), 10);
+                        setTimeout(() => this.input?.updateInputPosition(), 50);
+                        setTimeout(() => this.input?.updateInputPosition(), 100);
+                    }
+                    break;
+                    
+                case 'clearmsg':
+                    // Custom command to only clear error messages
+                    this.clearOnlyErrorMessages();
+                    
+                    // Update input position
+                    if (this.input) {
+                        this.input.updateInputPosition();
+                        setTimeout(() => this.input?.updateInputPosition(), 50);
+                    }
+                    break;
+                    
+                case 'reset':
+                    // Full clear - remove everything including welcome message
+                    this.output.clear();
+                    
+                    // Show welcome message again
+                    this.output.addOutput("Welcome to Terminal OS", false);
+                    this.output.addOutput("Type 'help' to see available commands", false);
+                    this.output.addOutput("", false);
+                    
+                    // Update input position after reset
+                    if (this.input) {
+                        // Multiple updates to ensure UI renders properly
+                        this.input.updateInputPosition();
+                        setTimeout(() => this.input?.updateInputPosition(), 10);
+                        setTimeout(() => this.input?.updateInputPosition(), 50);
+                        setTimeout(() => this.input?.updateInputPosition(), 100);
                     }
                     break;
                     
@@ -486,5 +520,28 @@ export class TerminalCommandProcessor {
         this.output.addOutput("  mission list        - List available missions", false);
         this.output.addOutput("  mission start <id>  - Start a mission", false);
         this.output.addOutput("  mission info <id>   - Show mission details", false);
+    }
+    
+    private clearOnlyErrorMessages(): void {
+        // Get all non-error lines from the output
+        interface TextItem {
+            text: string;
+        }
+        
+        const nonErrorLines = this.output.getOutputHistory().filter((text: TextItem) => {
+            const content = text.text || "";
+            // Skip error messages which typically start with "Command not found" or similar
+            return !(content.includes("Command not found") || 
+                    content.includes("Error") || 
+                    content.startsWith("$ "));
+        });
+        
+        // Clear everything
+        this.output.clear();
+        
+        // Re-add just the non-error lines
+        nonErrorLines.forEach((line: TextItem) => {
+            this.output.addOutput(line.text, false);
+        });
     }
 } 
