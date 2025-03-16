@@ -9,9 +9,11 @@ export class TerminalOutput {
     private lineHeight: number = 20;
     private paddingX: number = 12;
     private paddingY: number = 12;
+    private inputAreaHeight: number = 60; // Increased height reserved for input area
+    private bottomPadding: number = 40; // Increased additional padding below input
     private themeManager: TerminalThemeManager;
     private scrollManager: TerminalScrollManager;
-    private lastOutputY: number = 0; // Reset to 0, we'll calculate proper position
+    private lastOutputY: number = 0;
     
     constructor(
         parentContainer: Container, 
@@ -93,8 +95,22 @@ export class TerminalOutput {
         // Trim history if it exceeds the maximum size
         this.trimHistory();
         
-        // Notify scroll manager that content was added
-        this.scrollManager.updateContentAdded();
+        // Scroll to show bottom content with padding for input area
+        this.scrollToShowInputArea();
+    }
+
+    // Ensure there's enough space at the bottom to keep the input area visible
+    private scrollToShowInputArea(): void {
+        // Use significantly larger padding to ensure input visibility
+        const totalPadding = this.inputAreaHeight + this.bottomPadding;
+        
+        // Use the scrollToBottomWithPadding method to ensure input visibility
+        this.scrollManager.scrollToBottomWithPadding(totalPadding);
+        
+        // Force another update after a short delay to ensure scrolling applied
+        setTimeout(() => {
+            this.scrollManager.scrollToBottomWithPadding(totalPadding);
+        }, 10);
     }
 
     public setNextOutputPosition(y: number): void {
@@ -124,7 +140,13 @@ export class TerminalOutput {
         // Reset position after clearing
         this.resetOutputPosition();
         
-        // Update scroll after clearing
-        this.scrollManager.updateContentAdded();
+        // Ensure input area is visible after clearing
+        this.scrollToShowInputArea();
+    }
+    
+    // Handle resize events to maintain proper padding
+    public resize(width: number, height: number): void {
+        // Ensure input area is visible after resize
+        this.scrollToShowInputArea();
     }
 } 

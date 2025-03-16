@@ -168,6 +168,9 @@ export class TerminalScreen extends Container {
         // Update scroll manager
         this.scrollManager.resize(width - this.MISSION_PANEL_WIDTH, height);
         
+        // Ensure output manager maintains proper padding
+        this.outputManager.resize(width - this.MISSION_PANEL_WIDTH, height);
+        
         // Update input position
         this.inputManager.updateInputPosition();
     }

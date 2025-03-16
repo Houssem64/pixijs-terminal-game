@@ -127,9 +127,39 @@ export class TerminalScrollManager {
         this.updateScrollbar();
     }
     
+    // Scroll to a position that keeps the bottom content visible with padding
+    public scrollToBottomWithPadding(paddingHeight: number): void {
+        // Always ensure the scrollbar is visible when using padding
+        this.updateScrollbarVisibility();
+        
+        // Calculate visible height and total content height
+        const visibleHeight = this.terminalHeight - this.paddingY * 2;
+        const contentHeight = this.getContentHeight();
+        
+        // Ensure we always have enough room for content + padding
+        if (contentHeight + paddingHeight > visibleHeight) {
+            // Make sure scrollbar is shown even if content alone wouldn't require it
+            this.scrollbarVisible = true;
+            this.scrollbar.visible = true;
+            this.scrollbarTrack.visible = true;
+            
+            // Force the max scroll position to account for padding
+            this.maxScrollPosition = Math.max(this.maxScrollPosition, contentHeight + paddingHeight - visibleHeight);
+            
+            // Set scroll position to show the bottom content with padding
+            this.scrollPosition = this.maxScrollPosition;
+            
+            // Apply the scroll immediately
+            this.updateScrollbar();
+        }
+    }
+    
     public updateContentAdded(): void {
         this.updateScrollbarVisibility();
-        this.scrollToBottom();
+        // Instead of just scrolling to bottom, we'll scroll with padding by default
+        // This ensures content is properly positioned for input visibility
+        // We use a small default padding in case the specific method isn't called
+        this.scrollToBottomWithPadding(30);
     }
     
     private updateScrollbarVisibility(): void {
@@ -178,6 +208,9 @@ export class TerminalScrollManager {
             this.scrollbarTrack.visible = false;
             return;
         }
+
+        // Ensure scrollPosition is within valid range
+        this.scrollPosition = Math.max(0, Math.min(this.scrollPosition, this.maxScrollPosition));
 
         // Calculate scrollbar size and position
         const scrollbarHeight = Math.max(30, (visibleHeight / contentHeight) * visibleHeight);
@@ -236,16 +269,31 @@ export class TerminalScrollManager {
         if (newPosition !== this.scrollPosition) {
             this.scrollPosition = newPosition;
             this.updateScrollbar();
-            
-            // Auto-scroll to show latest input if scrolled to bottom
-            if (Math.abs(this.scrollPosition - this.maxScrollPosition) < 1) {
-                this.scrollToBottom();
-            }
         }
     }
     
     public setTheme(theme: TerminalTheme): void {
         this.theme = theme;
         this.updateScrollbar();
+    }
+    
+    // Add method to set a minimum content height
+    // This ensures there's always enough space at the bottom for the input prompt
+    public setMinimumContentHeight(minHeight: number): void {
+        // Get the current actual content height
+        const actualContentHeight = this.getContentHeight();
+        
+        // If the content is already taller than the minimum height, do nothing
+        if (actualContentHeight >= minHeight) return;
+        
+        // Otherwise, update the scrollbar to account for the minimum height
+        this.updateScrollbarVisibility();
+        
+        // Set maxScrollPosition based on the minimum height if it's larger
+        const visibleHeight = this.terminalHeight - this.paddingY * 2;
+        if (minHeight > visibleHeight) {
+            this.maxScrollPosition = Math.max(this.maxScrollPosition, minHeight - visibleHeight);
+            this.updateScrollbar();
+        }
     }
 } 
