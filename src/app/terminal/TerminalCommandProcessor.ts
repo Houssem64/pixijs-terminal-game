@@ -1005,6 +1005,9 @@ export class TerminalCommandProcessor {
                     
                     // Progress mission objective if applicable
                     this.updateMissionProgress("wifi_pentest", "wifi scan", "Target WiFi: CORP_SECURE (WPA2, Channel 6, BSSID: 00:11:22:33:44:55)");
+                    
+                    // Update input position after output is complete
+                    this.input?.updateInputPosition();
                 }, 1000);
                 break;
                 
@@ -1019,6 +1022,7 @@ export class TerminalCommandProcessor {
                     this.output.addOutput(`Attempting to capture packets from ${network}...`, false);
                     setTimeout(() => {
                         this.output.addOutput(`Error: Network ${network} not found or out of range.`, true);
+                        this.input?.updateInputPosition();
                     }, 800);
                     return;
                 }
@@ -1026,19 +1030,40 @@ export class TerminalCommandProcessor {
                 this.output.addOutput(`Starting capture on network ${network}...`, false);
                 
                 // Simulate capture process with multiple updates
-                setTimeout(() => this.output.addOutput("Switching to monitor mode...", false), 500);
-                setTimeout(() => this.output.addOutput("Channel set to 6...", false), 1000);
-                setTimeout(() => this.output.addOutput("Waiting for clients...", false), 1500);
-                setTimeout(() => this.output.addOutput("Client detected: 66:77:88:99:AA:BB", false), 2500);
+                setTimeout(() => {
+                    this.output.addOutput("Switching to monitor mode...", false);
+                    this.input?.updateInputPosition();
+                }, 500);
+                
+                setTimeout(() => {
+                    this.output.addOutput("Channel set to 6...", false);
+                    this.input?.updateInputPosition();
+                }, 1000);
+                
+                setTimeout(() => {
+                    this.output.addOutput("Waiting for clients...", false);
+                    this.input?.updateInputPosition();
+                }, 1500);
+                
+                setTimeout(() => {
+                    this.output.addOutput("Client detected: 66:77:88:99:AA:BB", false);
+                    this.input?.updateInputPosition();
+                }, 2500);
+                
                 setTimeout(() => {
                     this.output.addOutput("Sending deauthentication packets...", false);
+                    this.input?.updateInputPosition();
                 }, 3000);
+                
                 setTimeout(() => {
                     this.output.addOutput("Captured handshake from client 66:77:88:99:AA:BB", false);
                     this.output.addOutput("Capture saved to: /tmp/captures/capture_CORP_SECURE.cap", false);
                     
                     // Progress mission objective
                     this.updateMissionProgress("wifi_pentest", "wifi capture CORP_SECURE", "Captured handshake from client 66:77:88:99:AA:BB");
+                    
+                    // Update input position after final output
+                    this.input?.updateInputPosition();
                 }, 4000);
                 break;
                 
@@ -1048,6 +1073,7 @@ export class TerminalCommandProcessor {
                 
                 setTimeout(() => {
                     this.output.addOutput("Reading /tmp/captures/capture_CORP_SECURE.cap", false);
+                    this.input?.updateInputPosition();
                 }, 500);
                 
                 setTimeout(() => {
@@ -1061,6 +1087,9 @@ export class TerminalCommandProcessor {
                     
                     // Progress mission objective
                     this.updateMissionProgress("wifi_pentest", "wifi analyze", "WPA2 handshake found");
+                    
+                    // Update input position after output is complete
+                    this.input?.updateInputPosition();
                 }, 2000);
                 break;
                 
@@ -1093,6 +1122,7 @@ export class TerminalCommandProcessor {
                 const interval = setInterval(() => {
                     counter++;
                     this.output.addOutput(`Tried ${counter*100} passwords... (${Math.floor(counter/totalWords*100)}%)`, false);
+                    this.input?.updateInputPosition();
                     
                     if (counter >= totalWords) {
                         clearInterval(interval);
@@ -1103,6 +1133,9 @@ export class TerminalCommandProcessor {
                             
                             // Progress mission objective
                             this.updateMissionProgress("wifi_pentest", "wifi crack CORP_SECURE " + wordlistPath, "Password found: corporate2023");
+                            
+                            // Update input position after final output
+                            this.input?.updateInputPosition();
                         }, 500);
                     }
                 }, 500);
@@ -1121,6 +1154,7 @@ export class TerminalCommandProcessor {
                     this.output.addOutput(`Connecting to ${connectNetwork}...`, false);
                     setTimeout(() => {
                         this.output.addOutput(`Error: Network ${connectNetwork} not found or out of range.`, true);
+                        this.input?.updateInputPosition();
                     }, 1000);
                     return;
                 }
@@ -1129,6 +1163,7 @@ export class TerminalCommandProcessor {
                     this.output.addOutput(`Connecting to ${connectNetwork}...`, false);
                     setTimeout(() => {
                         this.output.addOutput(`Error: Incorrect password for ${connectNetwork}`, true);
+                        this.input?.updateInputPosition();
                     }, 1500);
                     return;
                 }
@@ -1136,8 +1171,16 @@ export class TerminalCommandProcessor {
                 this.output.addOutput(`Connecting to ${connectNetwork}...`, false);
                 
                 // Simulate connection process
-                setTimeout(() => this.output.addOutput("Authenticating...", false), 800);
-                setTimeout(() => this.output.addOutput("Requesting IP address via DHCP...", false), 1600);
+                setTimeout(() => {
+                    this.output.addOutput("Authenticating...", false);
+                    this.input?.updateInputPosition();
+                }, 800);
+                
+                setTimeout(() => {
+                    this.output.addOutput("Requesting IP address via DHCP...", false);
+                    this.input?.updateInputPosition();
+                }, 1600);
+                
                 setTimeout(() => {
                     this.output.addOutput("Successfully connected to CORP_SECURE", false);
                     this.output.addOutput("IP Address: 192.168.10.102", false);
@@ -1146,6 +1189,9 @@ export class TerminalCommandProcessor {
                     
                     // Progress mission objective
                     this.updateMissionProgress("wifi_pentest", "wifi connect CORP_SECURE corporate2023", "Successfully connected to CORP_SECURE");
+                    
+                    // Update input position after output is complete
+                    this.input?.updateInputPosition();
                 }, 2500);
                 break;
                 
@@ -1170,6 +1216,7 @@ export class TerminalCommandProcessor {
                 
                 setTimeout(() => {
                     this.output.addOutput("Scanning 192.168.10.0/24 ...", false);
+                    this.input?.updateInputPosition();
                 }, 800);
                 
                 setTimeout(() => {
@@ -1185,6 +1232,9 @@ export class TerminalCommandProcessor {
                     
                     // Progress mission objective
                     this.updateMissionProgress("wifi_pentest", "nmap scan", "Found 5 hosts on the network");
+                    
+                    // Update input position after output is complete
+                    this.input?.updateInputPosition();
                 }, 3000);
                 break;
                 
