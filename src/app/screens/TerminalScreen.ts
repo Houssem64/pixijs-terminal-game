@@ -111,6 +111,9 @@ export class TerminalScreen extends Container {
         
         // Process the command
         this.commandProcessor.processCommand(command);
+        
+        // Pass command to mission panel for step completion
+        this.missionPanel.processTerminalCommand(command);
     }
     
     private showWelcomeMessage(): void {
@@ -190,4 +193,4 @@ export class TerminalScreen extends Container {
         // Destroy input manager to clean up keyboard listeners
         this.inputManager.destroy();
     }
-} 
+}

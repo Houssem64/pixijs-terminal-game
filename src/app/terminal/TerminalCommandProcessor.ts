@@ -436,6 +436,14 @@ export class TerminalCommandProcessor {
                     this.handleMissionCommand(args);
                     break;
                     
+                case 'wifi':
+                    this.handleWifiCommand(args);
+                    break;
+                    
+                case 'nmap':
+                    this.handleNmapCommand(args);
+                    break;
+                    
                 case 'nano':
                     if (args.length < 2) {
                         this.output.addOutput('nano: missing file operand', true);
@@ -489,19 +497,19 @@ export class TerminalCommandProcessor {
         }
     }
     
-    private handlePasswordCommand(command: string): void {
+    private handlePasswordCommand(_command: string): void {
         // Handle password prompt input (for sudo, etc.)
         this.output.addOutput("Password handling not implemented yet.");
         this.state = TerminalState.NORMAL;
     }
     
-    private handleFTPCommand(command: string): void {
+    private handleFTPCommand(_command: string): void {
         // Handle FTP commands
         this.output.addOutput("FTP functionality not implemented yet.");
         this.state = TerminalState.NORMAL;
     }
     
-    private handleFTPPasswordCommand(command: string): void {
+    private handleFTPPasswordCommand(_command: string): void {
         // Handle FTP password prompt
         this.output.addOutput("FTP password handling not implemented yet.");
         this.state = TerminalState.NORMAL;
@@ -972,4 +980,232 @@ export class TerminalCommandProcessor {
             this.output.addOutput(line.text, false);
         });
     }
-} 
+
+    private handleWifiCommand(args: string[]): void {
+        const subCommand = args[1]?.toLowerCase();
+        
+        if (!subCommand) {
+            this.output.addOutput("Usage: wifi [scan|capture|analyze|crack|connect]", true);
+            return;
+        }
+        
+        switch (subCommand) {
+            case 'scan':
+                this.output.addOutput("Scanning for wireless networks...", false);
+                setTimeout(() => {
+                    this.output.addOutput("Networks found:", false);
+                    this.output.addOutput("SSID             SECURITY    CHANNEL    SIGNAL    BSSID", false);
+                    this.output.addOutput("----------------------------------------------------------", false);
+                    this.output.addOutput("CORP_SECURE      WPA2        6          95%       00:11:22:33:44:55", false);
+                    this.output.addOutput("Guest_WiFi       Open        1          87%       00:11:22:33:44:66", false);
+                    this.output.addOutput("HomeNetwork      WPA2        11         64%       00:11:22:33:44:77", false);
+                    this.output.addOutput("IoT_Network      WEP         3          42%       00:11:22:33:44:88", false);
+                    this.output.addOutput("", false);
+                    this.output.addOutput("Target WiFi: CORP_SECURE (WPA2, Channel 6, BSSID: 00:11:22:33:44:55)", false);
+                    
+                    // Progress mission objective if applicable
+                    this.updateMissionProgress("wifi_pentest", "wifi scan", "Target WiFi: CORP_SECURE (WPA2, Channel 6, BSSID: 00:11:22:33:44:55)");
+                }, 1000);
+                break;
+                
+            case 'capture':
+                const network = args[2];
+                if (!network) {
+                    this.output.addOutput("Usage: wifi capture [SSID]", true);
+                    return;
+                }
+                
+                if (network !== "CORP_SECURE") {
+                    this.output.addOutput(`Attempting to capture packets from ${network}...`, false);
+                    setTimeout(() => {
+                        this.output.addOutput(`Error: Network ${network} not found or out of range.`, true);
+                    }, 800);
+                    return;
+                }
+                
+                this.output.addOutput(`Starting capture on network ${network}...`, false);
+                
+                // Simulate capture process with multiple updates
+                setTimeout(() => this.output.addOutput("Switching to monitor mode...", false), 500);
+                setTimeout(() => this.output.addOutput("Channel set to 6...", false), 1000);
+                setTimeout(() => this.output.addOutput("Waiting for clients...", false), 1500);
+                setTimeout(() => this.output.addOutput("Client detected: 66:77:88:99:AA:BB", false), 2500);
+                setTimeout(() => {
+                    this.output.addOutput("Sending deauthentication packets...", false);
+                }, 3000);
+                setTimeout(() => {
+                    this.output.addOutput("Captured handshake from client 66:77:88:99:AA:BB", false);
+                    this.output.addOutput("Capture saved to: /tmp/captures/capture_CORP_SECURE.cap", false);
+                    
+                    // Progress mission objective
+                    this.updateMissionProgress("wifi_pentest", "wifi capture CORP_SECURE", "Captured handshake from client 66:77:88:99:AA:BB");
+                }, 4000);
+                break;
+                
+            case 'analyze':
+                // Check if capture exists
+                this.output.addOutput("Analyzing captured packets...", false);
+                
+                setTimeout(() => {
+                    this.output.addOutput("Reading /tmp/captures/capture_CORP_SECURE.cap", false);
+                }, 500);
+                
+                setTimeout(() => {
+                    this.output.addOutput("Analysis results:", false);
+                    this.output.addOutput("--------------------", false);
+                    this.output.addOutput("Network: CORP_SECURE", false);
+                    this.output.addOutput("Encryption: WPA2-PSK (CCMP)", false);
+                    this.output.addOutput("WPA2 handshake found", false);
+                    this.output.addOutput("Clients connected: 3", false);
+                    this.output.addOutput("Ready for password cracking attempt", false);
+                    
+                    // Progress mission objective
+                    this.updateMissionProgress("wifi_pentest", "wifi analyze", "WPA2 handshake found");
+                }, 2000);
+                break;
+                
+            case 'crack':
+                const crackNetwork = args[2];
+                const wordlistPath = args[3];
+                
+                if (!crackNetwork || !wordlistPath) {
+                    this.output.addOutput("Usage: wifi crack [SSID] [wordlist path]", true);
+                    return;
+                }
+                
+                if (crackNetwork !== "CORP_SECURE") {
+                    this.output.addOutput(`Error: No capture found for network ${crackNetwork}`, true);
+                    return;
+                }
+                
+                // Check if wordlist file exists
+                const wordlistExists = this.fileSystem.fileExists(wordlistPath);
+                if (!wordlistExists) {
+                    this.output.addOutput(`Error: Wordlist file not found: ${wordlistPath}`, true);
+                    return;
+                }
+                
+                this.output.addOutput(`Starting dictionary attack on ${crackNetwork} using ${wordlistPath}...`, false);
+                
+                // Simulate cracking process
+                let counter = 0;
+                const totalWords = 10;
+                const interval = setInterval(() => {
+                    counter++;
+                    this.output.addOutput(`Tried ${counter*100} passwords... (${Math.floor(counter/totalWords*100)}%)`, false);
+                    
+                    if (counter >= totalWords) {
+                        clearInterval(interval);
+                        setTimeout(() => {
+                            this.output.addOutput("Password found: corporate2023", false);
+                            this.output.addOutput("Time taken: 12.4 seconds", false);
+                            this.output.addOutput("Saving to /tmp/wifi_passwords.txt", false);
+                            
+                            // Progress mission objective
+                            this.updateMissionProgress("wifi_pentest", "wifi crack CORP_SECURE " + wordlistPath, "Password found: corporate2023");
+                        }, 500);
+                    }
+                }, 500);
+                break;
+                
+            case 'connect':
+                const connectNetwork = args[2];
+                const password = args[3];
+                
+                if (!connectNetwork || !password) {
+                    this.output.addOutput("Usage: wifi connect [SSID] [password]", true);
+                    return;
+                }
+                
+                if (connectNetwork !== "CORP_SECURE") {
+                    this.output.addOutput(`Connecting to ${connectNetwork}...`, false);
+                    setTimeout(() => {
+                        this.output.addOutput(`Error: Network ${connectNetwork} not found or out of range.`, true);
+                    }, 1000);
+                    return;
+                }
+                
+                if (password !== "corporate2023") {
+                    this.output.addOutput(`Connecting to ${connectNetwork}...`, false);
+                    setTimeout(() => {
+                        this.output.addOutput(`Error: Incorrect password for ${connectNetwork}`, true);
+                    }, 1500);
+                    return;
+                }
+                
+                this.output.addOutput(`Connecting to ${connectNetwork}...`, false);
+                
+                // Simulate connection process
+                setTimeout(() => this.output.addOutput("Authenticating...", false), 800);
+                setTimeout(() => this.output.addOutput("Requesting IP address via DHCP...", false), 1600);
+                setTimeout(() => {
+                    this.output.addOutput("Successfully connected to CORP_SECURE", false);
+                    this.output.addOutput("IP Address: 192.168.10.102", false);
+                    this.output.addOutput("Gateway: 192.168.10.1", false);
+                    this.output.addOutput("DNS: 192.168.10.1", false);
+                    
+                    // Progress mission objective
+                    this.updateMissionProgress("wifi_pentest", "wifi connect CORP_SECURE corporate2023", "Successfully connected to CORP_SECURE");
+                }, 2500);
+                break;
+                
+            default:
+                this.output.addOutput(`Unknown wifi subcommand: ${subCommand}`, true);
+                this.output.addOutput("Available subcommands: scan, capture, analyze, crack, connect", false);
+        }
+    }
+    
+    private handleNmapCommand(args: string[]): void {
+        const subCommand = args[1]?.toLowerCase();
+        
+        if (!subCommand) {
+            this.output.addOutput("Usage: nmap [scan|version|os|script|help]", true);
+            return;
+        }
+        
+        switch (subCommand) {
+            case 'scan':
+                // Check if connected to network
+                this.output.addOutput("Starting network scan...", false);
+                
+                setTimeout(() => {
+                    this.output.addOutput("Scanning 192.168.10.0/24 ...", false);
+                }, 800);
+                
+                setTimeout(() => {
+                    this.output.addOutput("Scan results:", false);
+                    this.output.addOutput("------------------", false);
+                    this.output.addOutput("192.168.10.1   - Router (Gateway) - Open ports: 80/tcp, 443/tcp, 53/udp", false);
+                    this.output.addOutput("192.168.10.5   - File Server - Open ports: 21/tcp, 22/tcp, 445/tcp", false);
+                    this.output.addOutput("192.168.10.10  - Web Server - Open ports: 80/tcp, 443/tcp, 22/tcp", false);
+                    this.output.addOutput("192.168.10.15  - Database Server - Open ports: 3306/tcp, 22/tcp", false);
+                    this.output.addOutput("192.168.10.20  - Print Server - Open ports: 9100/tcp, 22/tcp", false);
+                    this.output.addOutput("", false);
+                    this.output.addOutput("Found 5 hosts on the network", false);
+                    
+                    // Progress mission objective
+                    this.updateMissionProgress("wifi_pentest", "nmap scan", "Found 5 hosts on the network");
+                }, 3000);
+                break;
+                
+            case 'help':
+                this.output.addOutput("nmap - Network exploration tool and security scanner", false);
+                this.output.addOutput("", false);
+                this.output.addOutput("Usage: nmap [scan|version|os|script|help]", false);
+                this.output.addOutput("  scan     - Perform basic port scan on local network", false);
+                this.output.addOutput("  version  - Attempt to determine service versions (not implemented)", false);
+                this.output.addOutput("  os       - Attempt to determine OS versions (not implemented)", false);
+                this.output.addOutput("  script   - Run security scripts against targets (not implemented)", false);
+                this.output.addOutput("  help     - Show this help message", false);
+                break;
+                
+            default:
+                this.output.addOutput(`Unknown nmap subcommand: ${subCommand}`, true);
+                this.output.addOutput("Available subcommands: scan, version, os, script, help", false);
+        }
+    }
+    
+    private updateMissionProgress(missionId: string, command: string, output: string): void {
+        this.missionManager.checkCommandObjective(missionId, command, output);
+    }
+}

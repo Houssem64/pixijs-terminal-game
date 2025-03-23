@@ -9,6 +9,8 @@ interface Mission {
     steps: string[];
     completed: boolean;
     learningObjectives: string[];
+    stepCommands?: string[]; // Terminal commands to complete each step
+    completedSteps?: number[]; // Tracks which steps are completed
 }
 
 enum MissionCategory {
@@ -29,6 +31,7 @@ export class MissionPanel extends Container {
     private currentMissionIndex = 0;
     private currentCategory: MissionCategory | null = null;
     private showingCategoryList = true;
+    private activeMission: Mission | null = null;
     private PANEL_WIDTH = 350;
 
     private titleStyle: TextStyle;
@@ -299,16 +302,26 @@ export class MissionPanel extends Container {
         this.drawCategoryList();
     }
 
+    private drawBackground() {
+        this.background.clear();
+        this.background.beginFill(0x1a1a1a);
+        this.background.drawRoundedRect(0, 0, this.PANEL_WIDTH, window.innerHeight, 12);
+        this.background.endFill();
+
+        // Add gradient overlay
+        const gradient = new Graphics();
+        gradient.beginFill(0x000000, 0.6);
+        gradient.drawRoundedRect(2, 2, this.PANEL_WIDTH - 4, window.innerHeight - 4, 10);
+        gradient.endFill();
+        this.background.addChild(gradient);
+    }
+
     private drawCategoryList(): void {
         // Clear previous content
         this.contentContainer.removeChildren();
         this.showingCategoryList = true;
 
-        // Draw background
-        this.background.clear();
-        this.background.beginFill(0x111111);
-        this.background.drawRect(0, 0, this.PANEL_WIDTH, window.innerHeight);
-        this.background.endFill();
+        this.drawBackground();
 
         // Draw header - Add top padding to account for PlayerStatusBar
         const header = new Text("MISSIONS", this.titleStyle);
@@ -352,13 +365,9 @@ export class MissionPanel extends Container {
         // Clear previous content
         this.contentContainer.removeChildren();
 
-        // Draw background
-        this.background.clear();
-        this.background.beginFill(0x111111);
-        this.background.drawRect(0, 0, this.PANEL_WIDTH, window.innerHeight);
-        this.background.endFill();
+        this.drawBackground();
 
-        // Draw header - Add top padding to account for PlayerStatusBar
+        // Draw header and back button - Add top padding to account for PlayerStatusBar
         const backButton = new Text("<< Back", this.buttonStyle);
         backButton.x = 20;
         backButton.y = 120; // Increased from 20
@@ -378,46 +387,82 @@ export class MissionPanel extends Container {
         // Draw mission list - Start lower to account for PlayerStatusBar
         let missionY = 190; // Increased from 90
         categoryMissions.forEach((mission) => {
-            const container = new Container();
+            const container = this.createMissionCard(mission);
             container.y = missionY;
-            
-            const missionTitle = new Text(mission.title, this.categoryStyle);
-            missionTitle.x = 20;
-            missionTitle.y = 0;
-            missionTitle.eventMode = 'static';
-            missionTitle.cursor = 'pointer';
-            missionTitle.on('pointerdown', () => this.showMissionDetails(mission));
-            container.addChild(missionTitle);
-            
-            const difficulty = new Text(mission.difficulty, this.getDifficultyStyle(mission.difficulty));
-            difficulty.x = 20;
-            difficulty.y = 25;
-            container.addChild(difficulty);
-            
-            const completionStatus = new Text(mission.completed ? "COMPLETED" : "INCOMPLETE", 
-                mission.completed ? new TextStyle({...this.textStyle, fill: 0x00ff00}) : new TextStyle({...this.textStyle, fill: 0xaaaaaa}));
-            completionStatus.x = this.PANEL_WIDTH - completionStatus.width - 20;
-            completionStatus.y = 0;
-            container.addChild(completionStatus);
-            
             this.contentContainer.addChild(container);
-            missionY += 60;
+
+            missionY += 140;
         });
+    }
+
+    private createMissionCard(mission: Mission): Container {
+        const card = new Container();
+        const cardBackground = new Graphics();
+        cardBackground.beginFill(0x2a2a2a);
+        cardBackground.drawRoundedRect(0, 0, this.PANEL_WIDTH - 20, 120, 8);
+        cardBackground.endFill();
+        card.addChild(cardBackground);
+
+        // Add hover effect
+        card.eventMode = 'static';
+        card.on('pointerover', () => {
+            cardBackground.tint = 0x444444;
+        });
+        card.on('pointerout', () => {
+            cardBackground.tint = 0xffffff;
+        });
+
+        const missionTitle = new Text(mission.title, this.categoryStyle);
+        missionTitle.x = 20;
+        missionTitle.y = 20;
+        card.addChild(missionTitle);
+
+        const difficulty = new Text(mission.difficulty, this.getDifficultyStyle(mission.difficulty));
+        difficulty.x = 20;
+        difficulty.y = 50;
+        card.addChild(difficulty);
+
+        const completionStatus = new Text(mission.completed ? "COMPLETED" : "INCOMPLETE", 
+            mission.completed ? new TextStyle({...this.textStyle, fill: 0x00ff00}) : new TextStyle({...this.textStyle, fill: 0xaaaaaa}));
+        completionStatus.x = this.PANEL_WIDTH - completionStatus.width - 20;
+        completionStatus.y = 20;
+        card.addChild(completionStatus);
+
+        const startButton = new Graphics();
+        startButton.beginFill(0x008800);
+        startButton.drawRoundedRect(0, 90, this.PANEL_WIDTH - 40, 30, 5);
+        startButton.endFill();
+        startButton.x = 20;
+        startButton.y = 90;
+        startButton.eventMode = 'static';
+        startButton.cursor = 'pointer';
+        startButton.on('pointerdown', () => this.showMissionDetails(mission));
+        
+        const buttonText = new Text(mission.completed ? "REPLAY MISSION" : "START MISSION", new TextStyle({
+            fontFamily: "Fira Code",
+            fontSize: 14,
+            fill: 0xffffff,
+            fontWeight: "700",
+            align: "center"
+        }));
+        buttonText.x = startButton.width / 2 - buttonText.width / 2;
+        buttonText.y = startButton.height / 2 - buttonText.height / 2;
+        startButton.addChild(buttonText);
+        
+        card.addChild(startButton);
+
+        return card;
     }
 
     private showMissionDetails(mission: Mission): void {
         // Clear previous content
         this.contentContainer.removeChildren();
 
+        this.drawBackground();
+
         // Create a content container that can be scrolled
         const scrollContent = new Container();
         this.contentContainer.addChild(scrollContent);
-
-        // Draw background
-        this.background.clear();
-        this.background.beginFill(0x111111);
-        this.background.drawRect(0, 0, this.PANEL_WIDTH, window.innerHeight);
-        this.background.endFill();
 
         // Draw header and back button - Add top padding to account for PlayerStatusBar
         const backButton = new Text("<< Back", this.buttonStyle);
@@ -476,7 +521,7 @@ export class MissionPanel extends Container {
 
         nextY = objectiveY + 10;
 
-        // Draw steps
+        // Draw steps with completion status
         const stepsTitle = new Text("Mission Steps:", this.categoryStyle);
         stepsTitle.x = 20;
         stepsTitle.y = nextY;
@@ -485,22 +530,54 @@ export class MissionPanel extends Container {
         nextY += 30;
         let stepY = nextY;
         mission.steps.forEach((step, index) => {
-            const bullet = new Text(`${index + 1}. `, this.stepStyle);
-            bullet.x = 20;
-            bullet.y = stepY;
-            scrollContent.addChild(bullet);
-
-            const stepText = new Text(step, this.stepStyle);
-            stepText.x = 45;
-            stepText.y = stepY;
+            // Create step container
+            const stepContainer = new Container();
+            stepContainer.x = 20;
+            stepContainer.y = stepY;
+            
+            // Add step checkbox/indicator
+            const checkbox = new Graphics();
+            const isCompleted = mission.completedSteps?.includes(index);
+            checkbox.beginFill(isCompleted ? 0x00ff00 : 0x444444);
+            checkbox.drawCircle(0, 0, 6);
+            checkbox.endFill();
+            checkbox.x = 0;
+            checkbox.y = 8;
+            stepContainer.addChild(checkbox);
+            
+            // Add step number and text
+            const stepText = new Text(`${index + 1}. ${step}`, 
+                isCompleted ? 
+                new TextStyle({...this.stepStyle, fill: 0x00ff00}) : 
+                this.stepStyle
+            );
+            stepText.x = 15;
+            stepText.y = 0;
             stepText.style.wordWrap = true;
-            stepText.style.wordWrapWidth = this.PANEL_WIDTH - 65; // Tighter wrapping for indented text
-            scrollContent.addChild(stepText);
-
-            stepY += stepText.height + 10;
+            stepText.style.wordWrapWidth = this.PANEL_WIDTH - 65;
+            stepContainer.addChild(stepText);
+            
+            // Display command hint if this is active mission 
+            if (this.activeMission === mission && mission.stepCommands?.[index]) {
+                const commandHint = new Text(`Try: ${mission.stepCommands[index]}`, 
+                    new TextStyle({
+                        fontFamily: "Fira Code",
+                        fontSize: 12,
+                        fill: 0xffff00,
+                        fontWeight: "400",
+                        fontStyle: "italic"
+                    })
+                );
+                commandHint.x = 15;
+                commandHint.y = stepText.height + 5;
+                stepContainer.addChild(commandHint);
+            }
+            
+            scrollContent.addChild(stepContainer);
+            stepY += stepText.height + (this.activeMission === mission && mission.stepCommands?.[index] ? 30 : 15);
         });
 
-        // Start mission button
+        // Start/continue mission button
         const startButton = new Graphics();
         startButton.beginFill(0x008800);
         startButton.drawRoundedRect(0, 0, this.PANEL_WIDTH - 40, 40, 5);
@@ -511,7 +588,16 @@ export class MissionPanel extends Container {
         startButton.cursor = 'pointer';
         startButton.on('pointerdown', () => this.startMission(mission));
         
-        const buttonText = new Text(mission.completed ? "REPLAY MISSION" : "START MISSION", new TextStyle({
+        let buttonLabel: string;
+        if (mission.completed) {
+            buttonLabel = "REPLAY MISSION";
+        } else if (this.activeMission === mission) {
+            buttonLabel = "CONTINUE MISSION";
+        } else {
+            buttonLabel = "START MISSION";
+        }
+        
+        const buttonText = new Text(buttonLabel, new TextStyle({
             fontFamily: "Fira Code",
             fontSize: 16,
             fill: 0xffffff,
@@ -604,26 +690,56 @@ export class MissionPanel extends Container {
     }
 
     private startMission(mission: Mission): void {
-        // Instead of using native DOM events, use a more direct approach for Pixi.js
-        // Log the action and pass the id to the terminal
-        console.log(`Starting mission: ${mission.title} (ID: ${mission.id})`);
-        
-        // Execute the appropriate terminal command via the TerminalScreen
-        // We'll use a more direct approach by accessing the parent screen
-        const parentScreen = this.parent;
-        
-        // Define an interface for the parent screen with handleCommand method
-        interface TerminalScreenLike {
-            handleCommand: (command: string) => void;
+        this.activeMission = mission;
+        if (!mission.completedSteps) {
+            mission.completedSteps = [];
         }
         
-        if (parentScreen && 'handleCommand' in parentScreen) {
-            // If parent has a handleCommand method, call it with the mission start command
-            (parentScreen as TerminalScreenLike).handleCommand(`mission start ${mission.id}`);
-        } else {
-            // Fallback - the button shows the mission in the panel but doesn't start it
-            console.warn("Could not find terminal to start mission. Mission displayed but not started.");
-            this.showMissionDetails(mission);
+        // Extract commands from step descriptions
+        this.extractCommandsFromSteps(mission);
+        
+        // Redraw the mission details with active state
+        this.showMissionDetails(mission);
+        
+        // Notify game that this mission is now active
+        this.emit('missionStarted', mission);
+    }
+    
+    // Called from terminal service when a command is executed
+    public processTerminalCommand(command: string): void {
+        if (!this.activeMission) return;
+        
+        // Check if command matches any step command
+        this.activeMission.stepCommands?.forEach((stepCommand, stepIndex) => {
+            if (stepCommand && command.trim().toLowerCase().includes(stepCommand.toLowerCase())) {
+                if (this.activeMission) {
+                    this.completeStep(this.activeMission.id, stepIndex);
+                }
+            }
+        });
+    }
+    
+    private completeStep(missionId: string, stepIndex: number): void {
+        const mission = this.missions.find(m => m.id === missionId);
+        if (mission) {
+            if (!mission.completedSteps) {
+                mission.completedSteps = [];
+            }
+            
+            if (!mission.completedSteps.includes(stepIndex)) {
+                mission.completedSteps.push(stepIndex);
+                
+                // Check if all steps are completed
+                if (mission.completedSteps.length === mission.steps.length) {
+                    mission.completed = true;
+                    this.emit('missionCompleted', mission);
+                } else {
+                    this.emit('stepCompleted', { mission, stepIndex });
+                }
+                
+                // Redraw mission details to show updated progress
+                this.showMissionDetails(mission);
+            }
         }
     }
 
@@ -653,8 +769,25 @@ export class MissionPanel extends Container {
 
     public resize(width: number, height: number): void {
         this.background.clear();
-        this.background.beginFill(0x111111);
-        this.background.drawRect(0, 0, this.PANEL_WIDTH, height);
+        this.background.beginFill(0x1a1a1a);
+        this.background.drawRoundedRect(0, 0, this.PANEL_WIDTH, height, 12);
         this.background.endFill();
+
+        // Add gradient overlay
+        const gradient = new Graphics();
+        gradient.beginFill(0x000000, 0.6);
+        gradient.drawRoundedRect(2, 2, this.PANEL_WIDTH - 4, height - 4, 10);
+        gradient.endFill();
+        this.background.addChild(gradient);
     }
-} 
+
+    private extractCommandsFromSteps(mission: Mission): void {
+        if (!mission.stepCommands) {
+            mission.stepCommands = mission.steps.map((step) => {
+                // Extract command names from step descriptions if they're enclosed in quotes
+                const commandMatch = step.match(/'([^']+)'|"([^"]+)"/);
+                return commandMatch ? (commandMatch[1] || commandMatch[2]) : "";
+            });
+        }
+    }
+}
