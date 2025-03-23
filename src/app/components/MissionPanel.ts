@@ -1,5 +1,8 @@
 import { Container, Graphics, Text, TextStyle, FederatedPointerEvent } from "pixi.js";
+import { MissionData, MissionManager, MissionState } from "../utils/MissionManager";
+import { allMissions } from "../missions";
 
+// Interface to represent a mission in the panel UI
 interface Mission {
     id: string;
     title: string;
@@ -9,6 +12,7 @@ interface Mission {
     steps: string[];
     completed: boolean;
     learningObjectives: string[];
+    objectiveIds?: string[]; // IDs of objectives from the original MissionData
     stepCommands?: string[]; // Terminal commands to complete each step
     completedSteps?: number[]; // Tracks which steps are completed
 }
@@ -27,12 +31,13 @@ enum MissionCategory {
 export class MissionPanel extends Container {
     private background: Graphics;
     private contentContainer: Container;
-    private missions: Mission[];
+    private missions: Mission[] = [];
     private currentMissionIndex = 0;
     private currentCategory: MissionCategory | null = null;
     private showingCategoryList = true;
     private activeMission: Mission | null = null;
     private PANEL_WIDTH = 350;
+    private missionManager: MissionManager;
 
     private titleStyle: TextStyle;
     private textStyle: TextStyle;
@@ -49,6 +54,12 @@ export class MissionPanel extends Container {
         this.contentContainer = new Container();
         this.addChild(this.background);
         this.addChild(this.contentContainer);
+
+        // Get the mission manager instance
+        this.missionManager = MissionManager.getInstance();
+        
+        // Register all missions from the missions module
+        this.registerAllMissions();
 
         // Initialize text styles
         this.titleStyle = new TextStyle({
@@ -120,186 +131,134 @@ export class MissionPanel extends Container {
             padding: 4
         });
 
-        // Initialize missions
-        this.missions = [
-            // Brute Force Missions
-            {
-                id: "password-crack",
-                title: "Password Cracker",
-                description: "Learn to break weak passwords using basic brute force techniques.",
-                category: MissionCategory.BRUTE_FORCE,
-                difficulty: "Beginner",
-                steps: [
-                    "Use the 'crack' tool to attempt password recovery",
-                    "Identify common password patterns",
-                    "Apply dictionary-based attacks"
-                ],
-                completed: false,
-                learningObjectives: [
-                    "Understand password vulnerability",
-                    "Learn common cracking methodologies",
-                    "Recognize weak password patterns"
-                ]
-            },
-            {
-                id: "hash-breaker",
-                title: "Hash Breaker",
-                description: "Break through password hashes using rainbow tables and brute force methods.",
-                category: MissionCategory.BRUTE_FORCE,
-                difficulty: "Intermediate",
-                steps: [
-                    "Identify the hash algorithm used",
-                    "Apply rainbow table lookups",
-                    "Execute targeted brute force attacks"
-                ],
-                completed: false,
-                learningObjectives: [
-                    "Understand hash functions and their weaknesses",
-                    "Learn rainbow table implementation",
-                    "Practice efficient brute forcing with constraints"
-                ]
-            },
-            
-            // Penetration Testing Missions
-            {
-                id: "network-scan",
-                title: "Network Reconnaissance",
-                description: "Learn to map a network, identify hosts, and discover open ports.",
-                category: MissionCategory.PEN_TESTING,
-                difficulty: "Beginner",
-                steps: [
-                    "Use 'scan' to identify hosts on the network",
-                    "Enumerate open ports with 'portscan'",
-                    "Map network topology and services"
-                ],
-                completed: false,
-                learningObjectives: [
-                    "Understand network scanning techniques",
-                    "Learn port enumeration methods",
-                    "Practice identifying vulnerable services"
-                ]
-            },
-            {
-                id: "wifi_pentest",
-                title: "WiFi Penetration Test",
-                description: "Learn how to perform a complete penetration test on a WiFi network. You'll scan for networks, capture handshakes, analyze traffic, and crack WiFi passwords.",
-                category: MissionCategory.PEN_TESTING,
-                difficulty: "Intermediate",
-                steps: [
-                    "Scan for available wireless networks using 'wifi scan'",
-                    "Capture network packets using 'wifi capture CORP_SECURE'",
-                    "Analyze the captured packets with 'wifi analyze'",
-                    "Create a wordlist file at '/home/user/wifi/wordlist.txt'",
-                    "Crack the WiFi password using 'wifi crack CORP_SECURE /home/user/wifi/wordlist.txt'",
-                    "Connect to the WiFi network with 'wifi connect CORP_SECURE corporate2023'",
-                    "Scan for hosts on the network with 'nmap scan'",
-                    "Create a penetration test report"
-                ],
-                completed: false,
-                learningObjectives: [
-                    "Learn WiFi reconnaissance techniques",
-                    "Understand WPA2 authentication and vulnerabilities",
-                    "Practice wireless packet capture and analysis",
-                    "Learn dictionary-based password cracking"
-                ]
-            },
-            {
-                id: "privilege-escalation",
-                title: "Privilege Escalation",
-                description: "Exploit system vulnerabilities to gain higher access privileges.",
-                category: MissionCategory.PEN_TESTING,
-                difficulty: "Advanced",
-                steps: [
-                    "Identify system vulnerabilities",
-                    "Exploit misconfigured permissions",
-                    "Elevate your access to root/admin"
-                ],
-                completed: false,
-                learningObjectives: [
-                    "Learn Linux/Unix permission models",
-                    "Understand common escalation vectors",
-                    "Practice post-exploitation techniques"
-                ]
-            },
-            
-            // Social Engineering Missions
-            {
-                id: "phishing-campaign",
-                title: "Phishing Campaign",
-                description: "Create and analyze phishing attempts to understand social manipulation.",
-                category: MissionCategory.SOCIAL_ENGINEERING,
-                difficulty: "Intermediate",
-                steps: [
-                    "Craft convincing phishing emails",
-                    "Set up credential harvesting",
-                    "Analyze victim behavior patterns"
-                ],
-                completed: false,
-                learningObjectives: [
-                    "Understand psychological manipulation techniques",
-                    "Learn to identify phishing indicators",
-                    "Practice ethical social engineering"
-                ]
-            },
-            {
-                id: "pretexting",
-                title: "Pretexting Operation",
-                description: "Develop fictional scenarios to extract information from targets.",
-                category: MissionCategory.SOCIAL_ENGINEERING,
-                difficulty: "Advanced",
-                steps: [
-                    "Create a believable pretext/cover story",
-                    "Extract information through conversation",
-                    "Document and analyze obtained information"
-                ],
-                completed: false,
-                learningObjectives: [
-                    "Develop effective communication strategies",
-                    "Learn to build rapport and trust",
-                    "Practice information gathering techniques"
-                ]
-            },
-            
-            // Cryptography Missions
-            {
-                id: "cipher-break",
-                title: "Classical Cipher Breaking",
-                description: "Learn to break classical encryption methods through analysis.",
-                category: MissionCategory.CRYPTOGRAPHY,
-                difficulty: "Beginner",
-                steps: [
-                    "Identify encryption methods (Caesar, Vigenère, etc.)",
-                    "Apply frequency analysis",
-                    "Decrypt encoded messages"
-                ],
-                completed: false,
-                learningObjectives: [
-                    "Understand classical cryptography principles",
-                    "Learn basic cryptanalysis techniques",
-                    "Practice pattern recognition in encrypted text"
-                ]
-            },
-            {
-                id: "asymmetric-crypto",
-                title: "Asymmetric Cryptography",
-                description: "Explore public key infrastructure and its applications in security.",
-                category: MissionCategory.CRYPTOGRAPHY,
-                difficulty: "Advanced",
-                steps: [
-                    "Generate key pairs",
-                    "Encrypt and decrypt messages",
-                    "Establish secure communication channels"
-                ],
-                completed: false,
-                learningObjectives: [
-                    "Understand public/private key concepts",
-                    "Learn practical applications of PKI",
-                    "Practice implementing secure communication"
-                ]
-            }
-        ];
+        // Load missions from the MissionManager rather than hardcoding them
+        this.loadMissionsFromManager();
 
+        // Initial render
+        this.resize(600);
         this.drawCategoryList();
+    }
+
+    // Register all missions with the MissionManager
+    private registerAllMissions(): void {
+        // Register each mission from the imported array
+        allMissions.forEach(mission => {
+            this.missionManager.registerMission(mission);
+        });
+    }
+    
+    // Load missions from the MissionManager and convert to UI format
+    private loadMissionsFromManager(): void {
+        // Get all missions from the manager
+        const missionData = this.missionManager.getAllMissions();
+        
+        // Convert MissionData to Mission format for UI display
+        this.missions = missionData.map(data => this.convertToMissionFormat(data));
+    }
+    
+    // Convert MissionData format to Mission format for UI display
+    private convertToMissionFormat(data: MissionData): Mission {
+        // Extract steps from objectives descriptions
+        const steps = data.objectives.map(obj => obj.description);
+        
+        // Extract objective IDs for tracking
+        const objectiveIds = data.objectives.map(obj => obj.id);
+        
+        // Create learning objectives based on mission difficulty
+        const learningObjectives = this.generateLearningObjectives(data);
+        
+        // Extract commands required for each objective to use as step commands
+        const stepCommands = data.objectives.map(obj => obj.requiredCommand || '');
+        
+        // Initialize with no completed steps
+        const completedSteps: number[] = [];
+        
+        // Mark steps as completed based on mission data
+        if (data.objectives) {
+            data.objectives.forEach((objective, index) => {
+                if (objective.completed) {
+                    completedSteps.push(index);
+                }
+            });
+        }
+        
+        return {
+            id: data.id,
+            title: data.title,
+            description: data.description,
+            category: this.mapCategory(data.category),
+            difficulty: data.difficulty,
+            steps: steps,
+            completed: data.state === MissionState.COMPLETED,
+            learningObjectives: learningObjectives,
+            objectiveIds: objectiveIds,
+            stepCommands: stepCommands,
+            completedSteps: completedSteps
+        };
+    }
+    
+    // Generate learning objectives based on mission data
+    private generateLearningObjectives(data: MissionData): string[] {
+        // In a real implementation, these would be included in the mission data
+        // For now, we'll generate some generic ones based on mission category and difficulty
+        const objectives: string[] = [];
+        
+        // Add at least one objective based on category
+        switch(data.category.toLowerCase()) {
+            case "penetration testing":
+                objectives.push("Learn penetration testing methodology");
+                objectives.push("Practice ethical hacking techniques");
+                break;
+            case "network security":
+                objectives.push("Understand network security concepts");
+                objectives.push("Learn about network vulnerabilities");
+                break;
+            default:
+                objectives.push(`Learn ${data.category} concepts`);
+                break;
+        }
+        
+        // Add objective based on difficulty
+        switch(data.difficulty) {
+            case "Beginner":
+                objectives.push("Master basic security concepts");
+                break;
+            case "Intermediate":
+                objectives.push("Apply intermediate security techniques");
+                break;
+            case "Advanced":
+                objectives.push("Develop advanced security skills");
+                break;
+            case "Expert":
+                objectives.push("Master expert-level security challenges");
+                break;
+        }
+        
+        return objectives;
+    }
+    
+    // Map category string to MissionCategory enum
+    private mapCategory(category: string): MissionCategory {
+        switch(category.toLowerCase()) {
+            case "brute force":
+                return MissionCategory.BRUTE_FORCE;
+            case "penetration testing":
+                return MissionCategory.PEN_TESTING;
+            case "social engineering":
+                return MissionCategory.SOCIAL_ENGINEERING;
+            case "cryptography":
+                return MissionCategory.CRYPTOGRAPHY;
+            case "network security":
+                return MissionCategory.NETWORK_SECURITY;
+            case "web security":
+                return MissionCategory.WEB_SECURITY;
+            case "digital forensics":
+                return MissionCategory.FORENSICS;
+            case "malware analysis":
+                return MissionCategory.MALWARE_ANALYSIS;
+            default:
+                return MissionCategory.PEN_TESTING; // Default category
+        }
     }
 
     private drawBackground() {
@@ -529,53 +488,55 @@ export class MissionPanel extends Container {
 
         nextY += 30;
         let stepY = nextY;
-        mission.steps.forEach((step, index) => {
-            // Create step container
-            const stepContainer = new Container();
-            stepContainer.x = 20;
-            stepContainer.y = stepY;
-            
-            // Add step checkbox/indicator
-            const checkbox = new Graphics();
-            const isCompleted = mission.completedSteps?.includes(index);
-            checkbox.beginFill(isCompleted ? 0x00ff00 : 0x444444);
-            checkbox.drawCircle(0, 0, 6);
-            checkbox.endFill();
-            checkbox.x = 0;
-            checkbox.y = 8;
-            stepContainer.addChild(checkbox);
-            
-            // Add step number and text
-            const stepText = new Text(`${index + 1}. ${step}`, 
-                isCompleted ? 
-                new TextStyle({...this.stepStyle, fill: 0x00ff00}) : 
-                this.stepStyle
-            );
-            stepText.x = 15;
-            stepText.y = 0;
-            stepText.style.wordWrap = true;
-            stepText.style.wordWrapWidth = this.PANEL_WIDTH - 65;
-            stepContainer.addChild(stepText);
-            
-            // Display command hint if this is active mission 
-            if (this.activeMission === mission && mission.stepCommands?.[index]) {
-                const commandHint = new Text(`Try: ${mission.stepCommands[index]}`, 
-                    new TextStyle({
-                        fontFamily: "Fira Code",
-                        fontSize: 12,
-                        fill: 0xffff00,
-                        fontWeight: "400",
-                        fontStyle: "italic"
-                    })
+        if (mission.steps) {
+            mission.steps.forEach((step, index) => {
+                // Create step container
+                const stepContainer = new Container();
+                stepContainer.x = 20;
+                stepContainer.y = stepY;
+                
+                // Add step checkbox/indicator
+                const checkbox = new Graphics();
+                const isCompleted = mission.completedSteps ? mission.completedSteps.includes(index) : false;
+                checkbox.beginFill(isCompleted ? 0x00ff00 : 0x444444);
+                checkbox.drawCircle(0, 0, 6);
+                checkbox.endFill();
+                checkbox.x = 0;
+                checkbox.y = 8;
+                stepContainer.addChild(checkbox);
+                
+                // Add step number and text
+                const stepText = new Text(`${index + 1}. ${step}`, 
+                    isCompleted ? 
+                    new TextStyle({...this.stepStyle, fill: 0x00ff00}) : 
+                    this.stepStyle
                 );
-                commandHint.x = 15;
-                commandHint.y = stepText.height + 5;
-                stepContainer.addChild(commandHint);
-            }
-            
-            scrollContent.addChild(stepContainer);
-            stepY += stepText.height + (this.activeMission === mission && mission.stepCommands?.[index] ? 30 : 15);
-        });
+                stepText.x = 15;
+                stepText.y = 0;
+                stepText.style.wordWrap = true;
+                stepText.style.wordWrapWidth = this.PANEL_WIDTH - 65;
+                stepContainer.addChild(stepText);
+                
+                // Display command hint if this is active mission 
+                if (this.activeMission === mission && mission.stepCommands && mission.stepCommands[index]) {
+                    const commandHint = new Text(`Try: ${mission.stepCommands[index]}`, 
+                        new TextStyle({
+                            fontFamily: "Fira Code",
+                            fontSize: 12,
+                            fill: 0xffff00,
+                            fontWeight: "400",
+                            fontStyle: "italic"
+                        })
+                    );
+                    commandHint.x = 15;
+                    commandHint.y = stepText.height + 5;
+                    stepContainer.addChild(commandHint);
+                }
+                
+                scrollContent.addChild(stepContainer);
+                stepY += stepText.height + (this.activeMission === mission && mission.stepCommands && mission.stepCommands[index] ? 30 : 15);
+            });
+        }
 
         // Start/continue mission button
         const startButton = new Graphics();
@@ -710,13 +671,15 @@ export class MissionPanel extends Container {
         if (!this.activeMission) return;
         
         // Check if command matches any step command
-        this.activeMission.stepCommands?.forEach((stepCommand, stepIndex) => {
-            if (stepCommand && command.trim().toLowerCase().includes(stepCommand.toLowerCase())) {
-                if (this.activeMission) {
-                    this.completeStep(this.activeMission.id, stepIndex);
+        if (this.activeMission.stepCommands) {
+            this.activeMission.stepCommands.forEach((stepCommand: string, stepIndex: number) => {
+                if (stepCommand && command.trim().toLowerCase().includes(stepCommand.toLowerCase())) {
+                    if (this.activeMission) {
+                        this.completeStep(this.activeMission.id, stepIndex);
+                    }
                 }
-            }
-        });
+            });
+        }
     }
     
     private completeStep(missionId: string, stepIndex: number): void {
@@ -730,7 +693,7 @@ export class MissionPanel extends Container {
                 mission.completedSteps.push(stepIndex);
                 
                 // Check if all steps are completed
-                if (mission.completedSteps.length === mission.steps.length) {
+                if (mission.steps && mission.completedSteps.length === mission.steps.length) {
                     mission.completed = true;
                     this.emit('missionCompleted', mission);
                 } else {
@@ -767,7 +730,7 @@ export class MissionPanel extends Container {
         }
     }
 
-    public resize(width: number, height: number): void {
+    public resize(height: number): void {
         this.background.clear();
         this.background.beginFill(0x1a1a1a);
         this.background.drawRoundedRect(0, 0, this.PANEL_WIDTH, height, 12);

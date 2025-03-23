@@ -163,7 +163,7 @@ export class TerminalScreen extends Container {
         
         // Resize mission panel
         this.missionPanel.x = width - this.MISSION_PANEL_WIDTH;
-        this.missionPanel.resize(this.MISSION_PANEL_WIDTH, height);
+        this.missionPanel.resize(height);
         
         // Position player status bar
         this.positionPlayerStatusBar();
